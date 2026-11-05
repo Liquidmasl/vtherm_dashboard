@@ -73,6 +73,7 @@ export class VThermConfigPanel extends LitElement {
       .entryId=${v.kind === "edit" ? v.entryId : undefined}
       .newType=${v.kind === "new" ? v.type : undefined}
       @vtherm-back=${() => this.navigate("")}
+      @vtherm-open=${(e: CustomEvent) => this.navigate(`?entry=${e.detail.entryId}`)}
       @vtherm-created=${(e: CustomEvent) => this.navigate(`?entry=${e.detail.entryId}`)}
     ></vtherm-editor>`;
   }

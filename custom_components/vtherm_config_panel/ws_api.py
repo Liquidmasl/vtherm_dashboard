@@ -16,6 +16,7 @@ from custom_components.versatile_thermostat.humidity import find_humidity_sensor
 
 from .const import DOMAIN, VT_DOMAIN
 from .flow_driver import async_create, async_save_existing
+from .layout import CARDS, CONTROL_KEYS
 from .sections import Infos, describe, init_feature_flags, is_central
 
 # The use_*_central_config flags VT defaults from whether a central configuration exists.
@@ -71,9 +72,11 @@ def _placeholders(hass: HomeAssistant, infos: Infos) -> dict[str, str]:
 def _payload(hass: HomeAssistant, infos: Infos) -> dict[str, Any]:
     central = _central_entry(hass)
     return {
-        "sections": describe(infos, dict(central.data) if central else None),
+        **describe(infos, dict(central.data) if central else None),
         "central_exists": central is not None,
+        "central_entry_id": central.entry_id if central else None,
         "placeholders": _placeholders(hass, infos),
+        "layout": {"cards": CARDS, "control_keys": sorted(CONTROL_KEYS)},
     }
 
 

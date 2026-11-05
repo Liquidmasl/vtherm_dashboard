@@ -5,25 +5,50 @@ export type Infos = Record<string, any>;
 export interface HaFormField {
   name: string;
   required?: boolean;
+  optional?: boolean;
   default?: unknown;
   selector?: Record<string, any>;
   type?: string;
   [key: string]: unknown;
 }
 
-export interface SectionDesc {
+export interface FieldDesc {
+  schema: HaFormField;
+  /** VT flow step: translation key and where VT reports errors. */
   step: string;
-  parent: string | null;
-  schema: HaFormField[];
-  central_toggle?: string;
-  spec_schema?: HaFormField[];
-  central_values?: Infos;
+  /** Value comes from the central configuration (read-only here). */
+  inherited: boolean;
+}
+
+export type Level = "essential" | "common" | "advanced";
+
+export interface GroupControl {
+  type: "feature" | "central" | "method";
+  key?: string;
+  central?: string;
+  options?: Record<string, string[]>;
+}
+
+export interface LayoutGroup {
+  id: string;
+  control: GroupControl | null;
+  fields: { key: string; level: Level }[];
+}
+
+export interface LayoutCard {
+  id: string;
+  control?: GroupControl;
+  central?: string;
+  groups: LayoutGroup[];
 }
 
 export interface Layout {
-  sections: SectionDesc[];
+  fields: Record<string, FieldDesc>;
+  central_values: Infos;
   central_exists: boolean;
+  central_entry_id: string | null;
   placeholders: Record<string, string>;
+  layout: { cards: LayoutCard[]; control_keys: string[] };
 }
 
 export interface EntrySummary {

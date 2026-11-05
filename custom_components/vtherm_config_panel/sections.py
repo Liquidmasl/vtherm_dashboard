@@ -241,22 +241,28 @@ def schema_keys(schema: vol.Schema) -> list[str]:
     return [str(key) for key in schema.schema]
 
 
-def describe(infos: Infos, central_infos: Infos | None) -> list[dict[str, Any]]:
-    """The visible sections for a (draft) configuration, ready for the panel."""
-    result = []
+def describe(infos: Infos, central_infos: Infos | None) -> dict[str, Any]:
+    """The fields a (draft) configuration shows, flat, ready for the panel's layout.
+
+    Each field carries its serialized schema, the VT step it belongs to (translation key and
+    where VT reports its errors) and whether its value is inherited from the central
+    configuration. Inherited fields come with the central configuration's values.
+    """
+    fields: dict[str, dict[str, Any]] = {}
+    central_values: dict[str, Any] = {}
+
+    def add(schema: vol.Schema, step: str, inherited: bool) -> None:
+        for item in serialize(schema):
+            fields.setdefault(item["name"], {"schema": item, "step": step, "inherited": inherited})
+
     for section in SECTIONS:
         if not section.visible(infos):
             continue
-        entry: dict[str, Any] = {
-            "step": section.step,
-            "parent": section.parent,
-            "schema": serialize(section.schema(infos)),
-        }
+        add(section.schema(infos), section.step, False)
         if section.central_toggle and section.spec_schema and not is_central(infos):
             spec = section.spec_schema(infos)
-            entry["central_toggle"] = section.central_toggle
-            entry["spec_schema"] = serialize(spec)
-            if central_infos is not None:
-                entry["central_values"] = {k: central_infos[k] for k in schema_keys(spec) if k in central_infos}
-        result.append(entry)
-    return result
+            inherited = infos.get(section.central_toggle) is not False
+            add(spec, section.step, inherited)
+            if inherited and central_infos is not None:
+                central_values.update({k: central_infos[k] for k in schema_keys(spec) if k in central_infos})
+    return {"fields": fields, "central_values": central_values}

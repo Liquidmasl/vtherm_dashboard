@@ -1,0 +1,131 @@
+// Turns the server's flat field list + the layout map into what the page renders: cards,
+// groups, their switches and which fields are own, inherited or hidden. Pure functions.
+import type { FieldDesc, Infos, Layout, LayoutCard, LayoutGroup, Level } from "./api";
+
+export interface FieldView {
+  key: string;
+  level: Level;
+  desc: FieldDesc;
+}
+
+export interface GroupView {
+  id: string;
+  /** Feature switch on this group (e.g. humidity, load shedding). */
+  featureKey?: string;
+  featureOn: boolean;
+  /** "Central | own" switch on this group. */
+  centralKey?: string;
+  usesCentral: boolean;
+  method?: { options: Record<string, string[]>; current: string };
+  own: FieldView[];
+  inherited: FieldView[];
+}
+
+export interface CardView {
+  id: string;
+  featureKey?: string;
+  featureOn: boolean;
+  centralKey?: string;
+  usesCentral: boolean;
+  groups: GroupView[];
+  steps: Set<string>;
+}
+
+const isEmpty = (v: unknown) => v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0);
+
+/** Window detection method, derived from the values when the user has not picked one. */
+export function windowMethod(data: Infos, picked?: string): string {
+  if (picked) return picked;
+  return isEmpty(data.window_sensor_entity_id) && !isEmpty(data.window_auto_open_threshold) ? "drop" : "sensor";
+}
+
+function groupView(group: LayoutGroup, layout: Layout, data: Infos, method: string): GroupView | null {
+  const { fields } = layout;
+  const c = group.control;
+  const featureKey = c?.type === "feature" && c.key && fields[c.key] ? c.key : undefined;
+  // A feature whose switch itself is inherited (auto-TPI while TPI comes from central) is not configurable here.
+  if (featureKey && fields[featureKey].inherited) return null;
+  const centralName = c?.type === "central" ? c.key : c?.central;
+  const centralKey = centralName && fields[centralName] ? centralName : undefined;
+
+  let items = group.fields.filter((f) => fields[f.key]).map((f) => ({ ...f, desc: fields[f.key] }));
+  let methodView: GroupView["method"];
+  if (c?.type === "method" && c.options) {
+    methodView = { options: c.options, current: method };
+    const hidden = new Set(Object.entries(c.options).filter(([id]) => id !== method).flatMap(([, keys]) => keys));
+    items = items.filter((f) => !hidden.has(f.key));
+  }
+  if (!items.length && !featureKey) return null;
+  return {
+    id: group.id,
+    featureKey,
+    featureOn: featureKey ? data[featureKey] === true : true,
+    centralKey,
+    usesCentral: centralKey ? data[centralKey] !== false : false,
+    method: methodView,
+    own: items.filter((f) => !f.desc.inherited),
+    inherited: items.filter((f) => f.desc.inherited),
+  };
+}
+
+export function buildCards(layout: Layout, data: Infos, pickedMethod?: string): CardView[] {
+  const { fields } = layout;
+  const method = windowMethod(data, pickedMethod);
+  const control = new Set(layout.layout.control_keys);
+  const placed = new Set<string>();
+  const cards: CardView[] = [];
+
+  const addCard = (card: LayoutCard) => {
+    card.groups.forEach((g) => g.fields.forEach((f) => placed.add(f.key)));
+    const featureKey = card.control?.key && fields[card.control.key] ? card.control.key : undefined;
+    const centralKey = card.central && fields[card.central] ? card.central : undefined;
+    const groups = card.groups.map((g) => groupView(g, layout, data, method)).filter((g): g is GroupView => !!g);
+    if (!groups.length && !featureKey) return;
+    const steps = new Set<string>();
+    groups.forEach((g) => [...g.own, ...g.inherited].forEach((f) => steps.add(f.desc.step)));
+    cards.push({
+      id: card.id,
+      featureKey,
+      featureOn: featureKey ? data[featureKey] === true : true,
+      centralKey,
+      usesCentral: centralKey ? data[centralKey] !== false : false,
+      groups,
+      steps,
+    });
+  };
+  layout.layout.cards.forEach(addCard);
+
+  // Anything VT shows that the layout does not place yet must still be editable.
+  const unplaced = Object.keys(fields).filter((k) => !placed.has(k) && !control.has(k));
+  if (unplaced.length) {
+    addCard({ id: "other", groups: [{ id: "other", control: null, fields: unplaced.map((key) => ({ key, level: "common" })) }] });
+  }
+  return cards;
+}
+
+/** Own, visible, required fields without a value, per card. */
+export function missingByCard(cards: CardView[], data: Infos): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const card of cards) {
+    if (!card.featureOn) continue;
+    const keys = card.groups
+      .filter((g) => g.featureOn)
+      .flatMap((g) => g.own)
+      .filter((f) => f.desc.schema.required && isEmpty(data[f.key]))
+      .map((f) => f.key);
+    if (keys.length) out[card.id] = keys;
+  }
+  return out;
+}
+
+/** Schema defaults for own fields the draft does not have yet. Same object when nothing changed. */
+export function withDefaults(data: Infos, layout: Layout): Infos {
+  let out = data;
+  for (const [key, f] of Object.entries(layout.fields)) {
+    if (!f.inherited && f.schema.default !== undefined && out[key] === undefined) {
+      if (out === data) out = { ...data };
+      out[key] = f.schema.default;
+    }
+  }
+  return out;
+}

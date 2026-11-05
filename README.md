@@ -6,9 +6,12 @@ instead of VT's step-by-step config flow. Proof of concept for
 [versatile_thermostat#2171](https://github.com/jmcollin78/versatile_thermostat/issues/2171).
 
 - All VTherms on one page, central configuration first; create new ones from there.
-- Each VTherm on a single page: sections appear and disappear live as you toggle features.
-- Settings taken from the central configuration are shown inline (read-only) where they apply.
-- Required fields that are still empty are flagged per section before you save.
+- Each VTherm on one page: an index on the left, cards grouped by what you set up (room,
+  devices, heating control, open window, …) on the right. Features are switched on in their
+  own card; rarely needed settings sit in a collapsed "Advanced settings" per group.
+- "Central | Own" per group: inherited values stay visible (read-only) with where they come from.
+- Help texts sit behind an (i) next to each setting; required fields that are still empty are
+  flagged in the index before you save.
 - A "Visit" link on each VTherm's device page opens its configuration page.
 - Labels, help texts and errors are VT's own translations, so every language VT ships works.
 
@@ -21,7 +24,8 @@ nothing in VT is changed.
 
 ```
 panel (Lit, ha-form) ──ws──► vtherm_config_panel
-                               ├ sections.py     which sections/schemas to show (mirrors VT's menu)
+                               ├ sections.py     which fields VT shows for this config (mirrors VT's menu)
+                               ├ layout.py       which card, group and level each field goes into
                                ├ flow_driver.py  save = walk VT's config/options flow
                                └ device_links.py "Visit" link on VTherm devices
 ```
