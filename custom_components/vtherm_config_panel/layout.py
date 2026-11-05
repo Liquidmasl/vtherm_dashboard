@@ -20,8 +20,14 @@ def _f(*fields: tuple[str, str]) -> list[dict[str, str]]:
     return [{"key": k, "level": lvl} for k, lvl in fields]
 
 
-def _group(gid: str, fields: list[dict[str, str]], control: dict[str, Any] | None = None) -> dict[str, Any]:
-    return {"id": gid, "control": control, "fields": fields}
+def _group(
+    gid: str, fields: list[dict[str, str]], control: dict[str, Any] | None = None, types: list[str] | None = None
+) -> dict[str, Any]:
+    """``types`` limits a group to some thermostat types, for fields whose meaning depends on it."""
+    return {"id": gid, "control": control, "fields": fields, "types": types}
+
+
+_VALVE_LIMITS = (("min_opening_degrees", "advanced"), ("max_opening_degrees", "advanced"), ("max_closing_degree", "advanced"), ("opening_threshold_degree", "advanced"))
 
 
 E, C, A = ESSENTIAL, COMMON, ADVANCED
@@ -56,22 +62,26 @@ CARDS: list[dict[str, Any]] = [
                     ("auto_fan_mode", A),
                 ),
             ),
+            # On over_valve the valves are the devices, so their limits live here.
+            _group(
+                "valve_limits",
+                _f(("auto_regulation_dtemp", C), ("auto_regulation_periode_min", C), *_VALVE_LIMITS),
+                types=["thermostat_over_valve"],
+            ),
         ],
     },
     {
         "id": "correction",
         "groups": [
-            _group("correction", _f(("auto_regulation_mode", E), ("auto_regulation_dtemp", C), ("auto_regulation_periode_min", C), ("auto_regulation_use_device_temp", A))),
+            _group(
+                "correction",
+                _f(("auto_regulation_mode", E), ("auto_regulation_dtemp", C), ("auto_regulation_periode_min", C), ("auto_regulation_use_device_temp", A)),
+                types=["thermostat_over_climate"],
+            ),
             _group(
                 "valve",
-                _f(
-                    ("opening_degree_entity_ids", E),
-                    ("closing_degree_entity_ids", C),
-                    ("min_opening_degrees", A),
-                    ("max_opening_degrees", A),
-                    ("max_closing_degree", A),
-                    ("opening_threshold_degree", A),
-                ),
+                _f(("opening_degree_entity_ids", E), ("closing_degree_entity_ids", C), *_VALVE_LIMITS),
+                types=["thermostat_over_climate"],
             ),
             _group("sync", _f(("sync_entity_ids", E), ("sync_with_calibration", A)), {"type": "feature", "key": "sync_device_internal_temp"}),
         ],

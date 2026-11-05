@@ -41,6 +41,7 @@ export function windowMethod(data: Infos, picked?: string): string {
 
 function groupView(group: LayoutGroup, layout: Layout, data: Infos, method: string): GroupView | null {
   const { fields } = layout;
+  if (group.types && !group.types.includes(data.thermostat_type)) return null;
   const c = group.control;
   const featureKey = c?.type === "feature" && c.key && fields[c.key] ? c.key : undefined;
   // A feature whose switch itself is inherited (auto-TPI while TPI comes from central) is not configurable here.
@@ -76,7 +77,7 @@ export function buildCards(layout: Layout, data: Infos, pickedMethod?: string): 
   const cards: CardView[] = [];
 
   const addCard = (card: LayoutCard) => {
-    card.groups.forEach((g) => g.fields.forEach((f) => placed.add(f.key)));
+    card.groups.filter((g) => !g.types || g.types.includes(data.thermostat_type)).forEach((g) => g.fields.forEach((f) => placed.add(f.key)));
     const featureKey = card.control?.key && fields[card.control.key] ? card.control.key : undefined;
     const centralKey = card.central && fields[card.central] ? card.central : undefined;
     const groups = card.groups.map((g) => groupView(g, layout, data, method)).filter((g): g is GroupView => !!g);

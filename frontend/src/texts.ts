@@ -31,6 +31,7 @@ export const GROUP_TITLE: Record<string, string> = {
   range: "Outdoor sensor and temperature range",
   humidity: "Humidity sensor",
   valve: "Direct valve control",
+  valve_limits: "Valve commands",
   sync: "Sync the device's internal temperature",
   tpi: "TPI coefficients",
   auto_tpi: "Auto-TPI learning",

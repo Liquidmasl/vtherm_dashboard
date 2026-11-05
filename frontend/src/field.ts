@@ -21,6 +21,13 @@ export function selectorFor(schema: HaFormField): Record<string, any> {
 
 export const isBoolean = (schema: HaFormField) => "boolean" in selectorFor(schema);
 
+/** Inputs that hold lists (several entities, command lists) need a full row. */
+export const isWide = (schema: HaFormField) => {
+  const sel = selectorFor(schema);
+  const conf = Object.values(sel)[0] as Record<string, unknown> | null;
+  return !!conf && conf.multiple === true;
+};
+
 /** One setting: label, (i) with VT's help text, and HA's own input for its type. */
 @customElement("vt-field")
 export class VtField extends LitElement {

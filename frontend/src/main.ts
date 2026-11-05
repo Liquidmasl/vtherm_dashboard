@@ -1,31 +1,31 @@
-import { LitElement, html, css } from "lit";
+import { LitElement, html, css, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import { listEntries, type EntrySummary } from "./api";
+import type { VThermEditor } from "./editor";
 import { loadHaFormElements } from "./load-ha-elements";
 import { loadVtTranslations } from "./localize";
-import "./list";
+import "./switcher";
 import "./editor";
 
-type View = { kind: "list" } | { kind: "edit"; entryId: string } | { kind: "new"; type: string };
+type Selection = { entryId?: string; newType?: string };
 
-function viewFromUrl(): View {
+function selectionFromUrl(): Selection {
   const q = new URLSearchParams(window.location.search);
-  const entry = q.get("entry");
-  const type = q.get("new");
-  if (entry) return { kind: "edit", entryId: entry };
-  if (type) return { kind: "new", type };
-  return { kind: "list" };
+  return { entryId: q.get("entry") ?? undefined, newType: q.get("new") ?? undefined };
 }
 
-/** Sidebar panel: list of VTherms, one page per VTherm. State lives in the URL (?entry= / ?new=). */
+/** Sidebar panel: VTherm switcher on top, the selected VTherm's settings below. State lives in the URL. */
 @customElement("vtherm-config-panel")
 export class VThermConfigPanel extends LitElement {
   @property({ attribute: false }) hass: any;
   @property({ type: Boolean }) narrow = false;
   @property({ attribute: false }) panel: any;
   @state() private ready = false;
-  @state() private view: View = viewFromUrl();
+  @state() private entries: EntrySummary[] = [];
+  @state() private types: string[] = [];
+  @state() private selection: Selection = selectionFromUrl();
 
-  private onLocation = () => (this.view = viewFromUrl());
+  private onLocation = () => (this.selection = selectionFromUrl());
 
   connectedCallback() {
     super.connectedCallback();
@@ -40,42 +40,67 @@ export class VThermConfigPanel extends LitElement {
   }
 
   async firstUpdated() {
-    await Promise.all([loadHaFormElements(), loadVtTranslations(this.hass)]);
+    await Promise.all([loadHaFormElements(), loadVtTranslations(this.hass), this.refreshEntries()]);
     this.ready = true;
   }
 
-  private navigate(query: string) {
+  private async refreshEntries() {
+    const res = await listEntries(this.hass);
+    this.entries = res.entries;
+    this.types = res.thermostat_types;
+  }
+
+  private navigate(sel: Selection) {
+    const editor = this.renderRoot.querySelector("vtherm-editor") as VThermEditor | null;
+    if (editor?.dirty && !confirm("Discard the unsaved changes on this thermostat?")) return;
+    const query = sel.entryId ? `?entry=${sel.entryId}` : sel.newType ? `?new=${sel.newType}` : "";
     history.pushState(null, "", `${window.location.pathname}${query}`);
     window.dispatchEvent(new CustomEvent("location-changed"));
   }
 
+  /** Without a selection in the URL, show the first VTherm (central configuration first). */
+  private effectiveSelection(): Selection {
+    const { entryId, newType } = this.selection;
+    if (entryId || newType) return this.selection;
+    return { entryId: this.entries[0]?.entry_id };
+  }
+
   render() {
+    const sel = this.effectiveSelection();
     return html`
       <div class="header">
         <ha-menu-button .hass=${this.hass} .narrow=${this.narrow}></ha-menu-button>
         <div class="title">Versatile Thermostat</div>
       </div>
-      ${this.ready ? this.renderView() : html`<div class="loading"><ha-spinner></ha-spinner></div>`}
+      ${this.ready
+        ? html`
+            <div class="switcher">
+              <vtherm-switcher
+                .hass=${this.hass}
+                .entries=${this.entries}
+                .types=${this.types}
+                .selected=${sel.entryId}
+                .newType=${sel.newType}
+                @vtherm-open=${(e: CustomEvent) => this.navigate(e.detail)}
+              ></vtherm-switcher>
+            </div>
+            ${sel.entryId || sel.newType
+              ? html`<vtherm-editor
+                  .hass=${this.hass}
+                  .narrow=${this.narrow}
+                  .entryId=${sel.entryId}
+                  .newType=${sel.newType}
+                  @vtherm-open=${(e: CustomEvent) => this.navigate(e.detail)}
+                  @vtherm-saved=${() => this.refreshEntries()}
+                  @vtherm-created=${async (e: CustomEvent) => {
+                    await this.refreshEntries();
+                    this.navigate({ entryId: e.detail.entryId });
+                  }}
+                ></vtherm-editor>`
+              : html`<div class="empty">No Versatile Thermostats yet. Use “New” above to create the first one.</div>`}
+          `
+        : html`<div class="loading"><ha-spinner></ha-spinner></div>`}
     `;
-  }
-
-  private renderView() {
-    const v = this.view;
-    if (v.kind === "list") {
-      return html`<vtherm-list
-        .hass=${this.hass}
-        @vtherm-open=${(e: CustomEvent) => this.navigate(e.detail.entryId ? `?entry=${e.detail.entryId}` : `?new=${e.detail.newType}`)}
-      ></vtherm-list>`;
-    }
-    return html`<vtherm-editor
-      .hass=${this.hass}
-      .narrow=${this.narrow}
-      .entryId=${v.kind === "edit" ? v.entryId : undefined}
-      .newType=${v.kind === "new" ? v.type : undefined}
-      @vtherm-back=${() => this.navigate("")}
-      @vtherm-open=${(e: CustomEvent) => this.navigate(`?entry=${e.detail.entryId}`)}
-      @vtherm-created=${(e: CustomEvent) => this.navigate(`?entry=${e.detail.entryId}`)}
-    ></vtherm-editor>`;
   }
 
   static styles = css`
@@ -86,6 +111,7 @@ export class VThermConfigPanel extends LitElement {
       border-bottom: var(--app-header-border-bottom, none);
     }
     .title { font-size: 20px; }
-    .loading { display: flex; justify-content: center; padding: 64px; }
+    .switcher { padding: 16px 16px 4px; max-width: 1500px; margin: 0 auto; }
+    .loading, .empty { display: flex; justify-content: center; padding: 64px; color: var(--secondary-text-color); }
   `;
 }

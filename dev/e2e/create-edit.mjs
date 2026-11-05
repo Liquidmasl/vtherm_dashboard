@@ -55,4 +55,8 @@ await page.waitForTimeout(1500);
 const data = await editor.evaluate((ed) => ed.data);
 ok(data.window_delay === 77 && data.use_window_central_config === false, "window settings persisted after reload");
 
+// Clean up: remove the VTherm this run created.
+await page.evaluate((id) => document.querySelector("home-assistant").hass.callApi("DELETE", `config/config_entries/entry/${id}`), entryId);
+ok(true, "test VTherm removed");
+
 await browser.close();

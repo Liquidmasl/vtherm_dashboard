@@ -1,13 +1,13 @@
 import { LitElement, html, css, nothing, type PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { describe, getEntry, newDraft, save, type Infos, type Layout } from "./api";
-import { isBoolean } from "./field";
+import { isBoolean, isWide } from "./field";
 import "./field";
 import { errorText, fieldHelper, fieldLabel, localizeSelectorValue, thermostatTypeLabel } from "./localize";
 import { CARD_TEXT, GROUP_TITLE, METHOD_TEXT } from "./texts";
 import { buildCards, missingByCard, windowMethod, withDefaults, type CardView, type FieldView, type GroupView } from "./view";
 
-const WIDE_PX = 1000; // content width from which cards go into two columns
+const WIDE_PX = 760; // width from which the index sits beside the cards instead of above them
 
 /** Edits one VTherm (or creates one when `newType` is set): index on the left, cards on the right. */
 @customElement("vtherm-editor")
@@ -21,7 +21,7 @@ export class VThermEditor extends LitElement {
   @state() private data: Infos = {};
   @state() private layout?: Layout;
   @state() private windowMethod?: string;
-  @state() private dirty = false;
+  @state() dirty = false;
   @state() private saving = false;
   @state() private errors: Record<string, Record<string, string>> = {};
   @state() private banner?: { type: "error" | "success" | "warning"; text: string };
@@ -113,6 +113,7 @@ export class VThermEditor extends LitElement {
       if (res.success) {
         this.dirty = false;
         this.banner = { type: "success", text: "Saved. The thermostat has been reloaded." };
+        this.dispatchEvent(new CustomEvent("vtherm-saved", { bubbles: true, composed: true }));
         if (!this.entryId && res.entry_id) {
           this.dispatchEvent(new CustomEvent("vtherm-created", { detail: { entryId: res.entry_id }, bubbles: true, composed: true }));
         }
@@ -140,10 +141,6 @@ export class VThermEditor extends LitElement {
     this.renderRoot.querySelector(`#card-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  private back() {
-    this.dispatchEvent(new CustomEvent("vtherm-back", { bubbles: true, composed: true }));
-  }
-
   private fieldErrors(): Record<string, string> {
     const out: Record<string, string> = {};
     for (const errs of Object.values(this.errors)) {
@@ -163,7 +160,6 @@ export class VThermEditor extends LitElement {
 
     return html`
       <div class="toolbar">
-        <ha-icon-button-arrow-prev @click=${this.back}></ha-icon-button-arrow-prev>
         <div class="title">
           <div class="name">${this.data.name || this.heading}</div>
           <div class="sub">${thermostatTypeLabel(this.hass, this.data.thermostat_type)}${this.entryId ? "" : " · new"}</div>
@@ -205,20 +201,9 @@ export class VThermEditor extends LitElement {
     </nav>`;
   }
 
-  /** Two columns on wide screens, filled in order into whichever is shorter so the page stays balanced. */
+  /** One column of cards; the fields inside a card share the width (see .fields). */
   private renderColumns(cards: CardView[], fieldErrors: Record<string, string>) {
-    const rendered = cards.map((c) => ({ card: c, tpl: this.renderCard(c, fieldErrors) }));
-    if (!this.wide) return html`<div class="col">${rendered.map((r) => r.tpl)}</div>`;
-    const cols: { h: number; items: unknown[] }[] = [
-      { h: 0, items: [] },
-      { h: 0, items: [] },
-    ];
-    for (const { card, tpl } of rendered) {
-      const col = cols[0].h <= cols[1].h ? cols[0] : cols[1];
-      col.items.push(tpl);
-      col.h += estimateHeight(card);
-    }
-    return html`<div class="cols">${cols.map((c) => html`<div class="col">${c.items}</div>`)}</div>`;
+    return html`<div class="col">${cards.map((c) => this.renderCard(c, fieldErrors))}</div>`;
   }
 
   private renderCard(card: CardView, fieldErrors: Record<string, string>) {
@@ -283,7 +268,7 @@ export class VThermEditor extends LitElement {
     const p = this.layout!.placeholders;
     const value = readOnly ? this.layout!.central_values[f.key] : this.data[f.key];
     return html`<vt-field
-      class=${isBoolean(f.desc.schema) ? "bool" : ""}
+      class=${isBoolean(f.desc.schema) ? "bool" : isWide(f.desc.schema) ? "wide" : ""}
       .hass=${this.hass}
       .schema=${f.desc.schema}
       .value=${value}
@@ -365,7 +350,7 @@ export class VThermEditor extends LitElement {
     :host { display: block; --gap: 16px; }
     .loading { display: flex; justify-content: center; padding: 64px; }
     .toolbar {
-      position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 12px;
+      position: sticky; top: 0; max-width: 1500px; margin: 0 auto; box-sizing: border-box; z-index: 3; display: flex; align-items: center; gap: 12px;
       padding: 8px 16px; background: var(--app-header-background-color, var(--primary-background-color));
       border-bottom: 1px solid var(--divider-color);
     }
@@ -375,7 +360,7 @@ export class VThermEditor extends LitElement {
     .chip { font-size: 12px; padding: 2px 10px; border-radius: 12px; background: var(--secondary-background-color); color: var(--secondary-text-color); white-space: nowrap; }
     .chip.warn { background: rgba(var(--rgb-warning-color, 255, 166, 0), 0.18); color: var(--warning-color); }
 
-    .body { display: grid; gap: var(--gap); padding: var(--gap); max-width: 1500px; margin: 0 auto; }
+    .body { display: grid; gap: var(--gap); padding: var(--gap); max-width: 1500px; margin: 0 auto; box-sizing: border-box; }
     .body.wide { grid-template-columns: 220px minmax(0, 1fr); align-items: start; }
     .content { min-width: 0; display: flex; flex-direction: column; gap: var(--gap); }
 
@@ -396,7 +381,6 @@ export class VThermEditor extends LitElement {
     .index .state.warn { color: var(--warning-color); }
     .index .state.err { color: var(--error-color); }
 
-    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); align-items: start; }
     .col { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
 
     .card {
@@ -417,7 +401,10 @@ export class VThermEditor extends LitElement {
     .group + .group { border-top: 1px solid var(--divider-color); padding-top: 14px; }
     .ghead { display: flex; align-items: center; gap: 12px; min-height: 32px; }
     .ghead h3 { margin: 0; flex: 1; font-size: 12px; font-weight: 500; color: var(--secondary-text-color); text-transform: uppercase; letter-spacing: 0.05em; }
-    .fields { display: flex; flex-direction: column; gap: 2px; } /* HA inputs reserve their own hint row below */
+    /* Fields share the card's width in a grid; HA inputs reserve their own hint row, hence the small row gap. */
+    .fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 2px 24px; align-items: start; }
+    .fields vt-field.wide { grid-column: 1 / -1; }
+    .fields vt-field.bool { align-self: center; }
 
     .seg { display: inline-flex; border: 1px solid var(--divider-color); border-radius: 8px; overflow: hidden; flex-shrink: 0; }
     .seg.wide { align-self: stretch; }
@@ -448,13 +435,4 @@ export class VThermEditor extends LitElement {
     .inherited .fields { opacity: 0.75; }
     .central-link { display: inline-block; margin-top: 10px; font-size: 13px; color: var(--primary-color); }
   `;
-}
-
-/** Rough rendered height of a card, for balancing the two columns. */
-function estimateHeight(card: CardView): number {
-  if (!card.featureOn) return 2;
-  return card.groups.reduce((h, g) => {
-    const visible = g.featureOn ? g.own.filter((f) => f.level !== "advanced").length : 0;
-    return h + 1 + visible * 1.6 + (g.inherited.length ? 1 : 0) + (g.own.some((f) => f.level === "advanced") ? 0.6 : 0);
-  }, 3);
 }

@@ -33,6 +33,8 @@ export interface LayoutGroup {
   id: string;
   control: GroupControl | null;
   fields: { key: string; level: Level }[];
+  /** Only for these thermostat types (null: all). */
+  types?: string[] | null;
 }
 
 export interface LayoutCard {
