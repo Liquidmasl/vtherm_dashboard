@@ -64,6 +64,7 @@ CARDS: list[dict[str, Any]] = [
                     ("auto_fan_mode", A),
                 ),
             ),
+            _group("boiler_use", _f(("used_by_controls_central_boiler", E))),
             # On over_valve the valves are the devices, so their limits live here.
             _group(
                 "valve_limits",
@@ -129,10 +130,12 @@ CARDS: list[dict[str, Any]] = [
     },
     {
         "id": "window",
-        "control": {"type": "feature", "key": "use_window_feature"},
-        # Sensor or temperature drop: hides the other method's fields in every group of the card.
+        # One question replaces VT's feature flag and its two exclusive methods. "off" turns the
+        # feature flag off; the other options turn it on and hide the other method's fields.
         "method": {
+            "feature": "use_window_feature",
             "options": {
+                "off": [],
                 "sensor": ["window_sensor_entity_id", "window_delay", "window_off_delay"],
                 "drop": ["window_auto_open_threshold", "window_auto_close_threshold", "window_auto_max_duration"],
             },
@@ -179,7 +182,6 @@ CARDS: list[dict[str, Any]] = [
                 _f(("power_sensor_entity_id", E), ("max_power_sensor_entity_id", E), ("power_temp", C)),
                 {"type": "feature", "key": "use_power_feature", "central": "use_power_central_config"},
             ),
-            _group("boiler_use", _f(("used_by_controls_central_boiler", E))),
         ],
     },
     {
@@ -252,7 +254,7 @@ DERIVED_FLAGS = {"humidity_sensor_entity_id": "use_humidity_feature"}
 CONTROL_KEYS = {"thermostat_type", *DERIVED_FLAGS.values()} | {
     key
     for card in CARDS
-    for key in [(card.get("control") or {}).get("key")]
+    for key in [(card.get("control") or {}).get("key"), (card.get("method") or {}).get("feature")]
     + [k for g in card["groups"] for k in ((g["control"] or {}).get("key"), (g["control"] or {}).get("central"))]
     if key
 }

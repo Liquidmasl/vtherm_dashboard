@@ -38,7 +38,6 @@ export const GROUP_TITLE: Record<string, string> = {
   sync: "Sync the device's internal temperature",
   tpi: "TPI coefficients",
   auto_tpi: "Auto-TPI learning",
-  window_detect: "How to detect it",
   window_behaviour: "What happens",
   motion_detect: "Sensor",
   motion_behaviour: "What happens",
@@ -47,7 +46,8 @@ export const GROUP_TITLE: Record<string, string> = {
   failure: "Heating failure detection",
 };
 
-export const METHOD_TEXT: Record<string, string> = { sensor: "Window sensor", drop: "Temperature drop" };
+export const METHOD_TEXT: Record<string, string> = { off: "No detection", sensor: "Window sensor", drop: "Temperature drop" };
+export const METHOD_QUESTION = "How should this room notice an open window?";
 
 /** What each thermostat type is for, shown when creating one. */
 export const TYPE_TEXT: Record<string, { title: string; body: string; examples: string }> = {

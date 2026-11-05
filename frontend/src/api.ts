@@ -41,7 +41,7 @@ export interface LayoutCard {
   id: string;
   control?: GroupControl;
   /** A choice between alternative sets of fields (window: sensor or temperature drop). */
-  method?: { options: Record<string, string[]> };
+  method?: { feature?: string; options: Record<string, string[]> };
   groups: LayoutGroup[];
 }
 

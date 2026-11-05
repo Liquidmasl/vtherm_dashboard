@@ -1,5 +1,6 @@
 // Turns the server's flat field list + the layout map into what the page renders: cards,
 // groups, their switches and which fields are own, inherited or hidden. Pure functions.
+import { isBoolean } from "./field";
 import type { FieldDesc, Infos, Layout, LayoutCard, LayoutGroup, Level } from "./api";
 
 export interface FieldView {
@@ -33,7 +34,8 @@ const isEmpty = (v: unknown) => v === undefined || v === null || v === "" || (Ar
 
 /** Window detection method, derived from the values when the user has not picked one. */
 export function windowMethod(data: Infos, picked?: string): string {
-  if (picked) return picked;
+  if (data.use_window_feature !== true) return "off";
+  if (picked && picked !== "off") return picked;
   return isEmpty(data.window_sensor_entity_id) && !isEmpty(data.window_auto_open_threshold) ? "drop" : "sensor";
 }
 
@@ -71,19 +73,22 @@ export function buildCards(layout: Layout, data: Infos, pickedMethod?: string): 
     const featureKey = card.control?.key && fields[card.control.key] ? card.control.key : undefined;
     let method: CardView["method"];
     let hidden = new Set<string>();
+    let methodOff = false;
     if (card.method) {
+      if (card.method.feature && !fields[card.method.feature]) return; // feature not available here
       const current = windowMethod(data, pickedMethod);
       method = { options: Object.keys(card.method.options), current };
       hidden = new Set(Object.entries(card.method.options).filter(([id]) => id !== current).flatMap(([, keys]) => keys));
+      methodOff = current === "off";
     }
-    const groups = card.groups.map((g) => groupView(g, layout, data, hidden)).filter((g): g is GroupView => !!g);
-    if (!groups.length && !featureKey) return;
+    const groups = methodOff ? [] : card.groups.map((g) => groupView(g, layout, data, hidden)).filter((g): g is GroupView => !!g);
+    if (!groups.length && !featureKey && !method) return;
     const steps = new Set<string>();
     groups.forEach((g) => [...g.own, ...g.inherited].forEach((f) => steps.add(f.desc.step)));
     cards.push({
       id: card.id,
       featureKey,
-      featureOn: featureKey ? data[featureKey] === true : true,
+      featureOn: featureKey ? data[featureKey] === true : !methodOff,
       method,
       groups,
       steps,
@@ -98,6 +103,11 @@ export function buildCards(layout: Layout, data: Infos, pickedMethod?: string): 
   }
   return cards;
 }
+
+/** Whether a card asks for at least one required value (it gets a stronger frame). */
+export const hasRequired = (card: CardView) =>
+  card.featureOn &&
+  card.groups.some((g) => g.featureOn && g.own.some((f) => f.desc.schema.required && f.level !== "advanced" && !isBoolean(f.desc.schema)));
 
 /** Own, visible, required fields without a value, per card. */
 export function missingByCard(cards: CardView[], data: Infos): Record<string, string[]> {

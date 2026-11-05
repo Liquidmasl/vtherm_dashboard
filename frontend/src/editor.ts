@@ -4,8 +4,8 @@ import { describe, getEntry, newDraft, save, type Infos, type Layout } from "./a
 import { isBoolean, isWide } from "./field";
 import "./field";
 import { errorText, fieldHelper, fieldLabel, localizeSelectorValue, thermostatTypeLabel } from "./localize";
-import { CARD_TEXT, GROUP_TITLE, METHOD_TEXT } from "./texts";
-import { buildCards, missingByCard, windowMethod, withDefaults, type CardView, type FieldView, type GroupView } from "./view";
+import { CARD_TEXT, GROUP_TITLE, METHOD_QUESTION, METHOD_TEXT } from "./texts";
+import { buildCards, hasRequired, missingByCard, withDefaults, type CardView, type FieldView, type GroupView } from "./view";
 
 const WIDE_PX = 760; // width from which the index sits beside the cards instead of above them
 
@@ -99,12 +99,16 @@ export class VThermEditor extends LitElement {
 
   private setWindowMethod(method: string) {
     this.windowMethod = method;
+    if (method === "off") {
+      this.change({ use_window_feature: false });
+      return;
+    }
     const own = (k: string) => this.layout?.fields[k] && !this.layout.fields[k].inherited;
     const clear =
       method === "drop"
         ? ["window_sensor_entity_id"]
         : ["window_auto_open_threshold", "window_auto_close_threshold", "window_auto_max_duration"].filter(own);
-    this.change(Object.fromEntries(clear.map((k) => [k, undefined])));
+    this.change({ use_window_feature: true, ...Object.fromEntries(clear.map((k) => [k, undefined])) });
   }
 
   private async onSave() {
@@ -177,7 +181,7 @@ export class VThermEditor extends LitElement {
         ${this.renderIndex(cards, missing, fieldErrors)}
         <div class="content">
           ${this.banner ? html`<ha-alert alert-type=${this.banner.type}>${this.banner.text}</ha-alert>` : nothing}
-          ${this.renderColumns(cards, fieldErrors)}
+          ${this.renderColumns(cards, fieldErrors, missing)}
         </div>
       </div>
     `;
@@ -206,15 +210,18 @@ export class VThermEditor extends LitElement {
   }
 
   /** One column of cards; the fields inside a card share the width (see .fields). */
-  private renderColumns(cards: CardView[], fieldErrors: Record<string, string>) {
-    return html`<div class="col">${cards.map((c) => this.renderCard(c, fieldErrors))}</div>`;
+  private renderColumns(cards: CardView[], fieldErrors: Record<string, string>, missing: Record<string, string[]>) {
+    return html`<div class="col">${cards.map((c) => this.renderCard(c, fieldErrors, missing))}</div>`;
   }
 
-  private renderCard(card: CardView, fieldErrors: Record<string, string>) {
+  private renderCard(card: CardView, fieldErrors: Record<string, string>, missing: Record<string, string[]>) {
     const text = CARD_TEXT[card.id] ?? CARD_TEXT.other;
     const baseErrors = [...card.steps].map((s) => this.errors[s]?.base).filter(Boolean) as string[];
     return html`
-      <section class="card ${card.featureOn ? "" : "off"}" id="card-${card.id}">
+      <section
+        class="card ${card.featureOn ? "" : "off"} ${hasRequired(card) ? "required" : ""} ${missing[card.id] ? "missing" : ""}"
+        id="card-${card.id}"
+      >
         <header>
           <ha-icon icon=${text.icon}></ha-icon>
           <div class="htext">
@@ -223,9 +230,9 @@ export class VThermEditor extends LitElement {
           </div>
           ${card.featureKey ? this.featureSwitch(card.featureKey, card.featureOn) : nothing}
         </header>
+        ${card.method ? this.methodChoice(card.method) : nothing}
         ${card.featureOn
           ? html`
-              ${card.method ? this.methodChoice(card.method) : nothing}
               ${baseErrors.map((code) => html`<ha-alert alert-type="error">${errorText(this.hass, code)}</ha-alert>`)}
               ${card.groups.map((g) => this.renderGroup(g, fieldErrors))}
             `
@@ -337,7 +344,8 @@ export class VThermEditor extends LitElement {
   }
 
   private methodChoice(method: NonNullable<CardView["method"]>) {
-    return html`<div class="seg wide" role="radiogroup" aria-label="Detection method">
+    return html`<div class="question">${METHOD_QUESTION}</div>
+      <div class="seg wide" role="radiogroup" aria-label=${METHOD_QUESTION}>
       ${method.options.map(
         (id) =>
           html`<button role="radio" aria-checked=${id === method.current} class=${id === method.current ? "on" : ""} @click=${() => this.setWindowMethod(id)}>
@@ -389,7 +397,11 @@ export class VThermEditor extends LitElement {
       border-radius: var(--ha-card-border-radius, 12px); padding: 16px; display: flex; flex-direction: column; gap: 14px;
       scroll-margin-top: 72px;
     }
-    .card.off { gap: 0; }
+    .card.off:not(:has(.seg)) { gap: 0; }
+    /* Cards that ask for required values stand out a little; with values missing, in the warning colour. */
+    .card.required { border-color: color-mix(in srgb, var(--primary-color) 45%, var(--divider-color)); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18); }
+    .card.required.missing { border-color: color-mix(in srgb, var(--warning-color) 70%, var(--divider-color)); }
+    .question { font-size: 14px; margin-bottom: -6px; }
     .card.off header { opacity: 0.7; }
     .card header { display: flex; align-items: flex-start; gap: 12px; }
     .card header > ha-icon { color: var(--secondary-text-color); margin-top: 2px; }
