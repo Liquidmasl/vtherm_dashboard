@@ -68,7 +68,7 @@
   "motion_detect": "Sensor",
   "motion_behaviour": "What happens",
   "shedding": "Load shedding",
-  "boiler_use": "Central boiler",
+  "boiler_use": "Heat source",
   "failure": "Heating failure detection"
  },
  "fields": {
@@ -134,8 +134,8 @@
    "info": "Format command[/attribute[:value]], one per device, in the same order as the devices. Examples: select_option/option:comfort, set_hvac_mode/hvac_mode:heat. Plain switches use turn_on / turn_off automatically."
   },
   "used_by_controls_central_boiler": {
-   "label": "Needs the central boiler",
-   "hint": "Turn the boiler on when this room asks for heat.",
+   "label": "Heated by the central boiler",
+   "hint": "Turns the boiler on when this room needs heat.",
    "info": "Counts this thermostat's devices for the central boiler (configured in the central configuration). Rooms on electric heaters usually stay off."
   },
   "auto_fan_mode": {

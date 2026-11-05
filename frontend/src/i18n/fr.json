@@ -68,7 +68,7 @@
   "motion_detect": "Capteur",
   "motion_behaviour": "Ce qui se passe",
   "shedding": "Délestage",
-  "boiler_use": "Chaudière centrale",
+  "boiler_use": "Source de chaleur",
   "failure": "Détection de panne de chauffe"
  },
  "fields": {
@@ -134,7 +134,7 @@
    "info": "Format commande[/attribut[:valeur]], une par équipement, dans le même ordre. Exemples : select_option/option:comfort, set_hvac_mode/hvac_mode:heat. Les switch utilisent turn_on / turn_off."
   },
   "used_by_controls_central_boiler": {
-   "label": "Utilise la chaudière centrale",
+   "label": "Chauffée par la chaudière centrale",
    "hint": "Allume la chaudière quand cette pièce demande de la chaleur.",
    "info": "Compte les équipements de ce thermostat pour la chaudière centrale (réglée dans la configuration centrale). Les pièces chauffées à l'électricité restent en général désactivées."
   },

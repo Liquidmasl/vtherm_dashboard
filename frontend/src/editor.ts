@@ -466,7 +466,7 @@ export class VThermEditor extends LitElement {
 
     .card {
       background: var(--ha-card-background, var(--card-background-color)); border: 1px solid var(--divider-color);
-      border-radius: var(--ha-card-border-radius, 12px); padding: 16px; display: flex; flex-direction: column; gap: 14px;
+      border-radius: var(--ha-card-border-radius, 12px); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
       scroll-margin-top: 72px;
     }
     .card.off:not(:has(.seg)) { gap: 0; }
@@ -482,14 +482,13 @@ export class VThermEditor extends LitElement {
     .card header p { margin: 2px 0 0; font-size: 13px; color: var(--secondary-text-color); line-height: 1.4; }
     .override { display: inline-flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; align-self: flex-start; }
 
-    .group { display: flex; flex-direction: column; gap: 12px; }
-    .group + .group { border-top: 1px solid var(--divider-color); padding-top: 14px; }
-    .ghead { display: flex; align-items: center; gap: 12px; min-height: 32px; }
+    .group { display: flex; flex-direction: column; gap: 8px; }
+    .group + .group { border-top: 1px solid var(--divider-color); padding-top: 10px; }
+    .ghead { display: flex; align-items: center; gap: 12px; min-height: 26px; }
     .ghead h3 { margin: 0; flex: 1; font-size: 12px; font-weight: 500; color: var(--secondary-text-color); text-transform: uppercase; letter-spacing: 0.05em; }
-    /* Fields share the card's width in a grid; HA inputs reserve their own hint row, hence the small row gap. */
-    .fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 2px 24px; align-items: start; }
+    /* Fields as compact tiles in a grid; list inputs take a full row. */
+    .fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; align-items: stretch; }
     .fields vt-field.wide { grid-column: 1 / -1; }
-    .fields vt-field.bool { align-self: center; }
 
     .seg { display: inline-flex; border: 1px solid var(--divider-color); border-radius: 8px; overflow: hidden; flex-shrink: 0; }
     .seg.wide { align-self: stretch; }
@@ -504,7 +503,7 @@ export class VThermEditor extends LitElement {
     .adv > summary { font-size: 13px; color: var(--primary-color); display: inline-flex; align-items: center; gap: 6px; }
     .adv > summary::before { content: "▸"; transition: transform 0.15s; }
     .adv[open] > summary::before { transform: rotate(90deg); }
-    .adv[open] > summary { margin-bottom: 12px; }
+    .adv[open] > summary { margin-bottom: 8px; }
     .count { font-size: 11px; padding: 0 6px; border-radius: 8px; background: var(--secondary-background-color); color: var(--secondary-text-color); }
 
     .inherited { border-left: 3px solid var(--divider-color); padding: 4px 0 4px 12px; }
@@ -516,10 +515,10 @@ export class VThermEditor extends LitElement {
     .kv { display: inline-flex; border: 1px solid var(--divider-color); border-radius: 6px; overflow: hidden; font-size: 12px; max-width: 100%; }
     .kv .k { padding: 2px 6px; color: var(--secondary-text-color); background: var(--secondary-background-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
     .kv .v { padding: 2px 6px; color: var(--primary-text-color); white-space: nowrap; }
-    .inherited[open] > summary { margin-bottom: 12px; }
+    .inherited[open] > summary { margin-bottom: 8px; }
     .inherited .fields { opacity: 0.75; }
     .central-link { display: inline-block; margin-top: 10px; font-size: 13px; color: var(--primary-color); }
-    .presets { display: grid; grid-template-columns: minmax(110px, auto) repeat(var(--cols), minmax(90px, 140px)); gap: 6px 16px; align-items: center; }
+    .presets { display: grid; grid-template-columns: 150px repeat(var(--cols), 120px); gap: 6px 16px; align-items: center; }
     .ph { font-size: 12px; color: var(--secondary-text-color); text-transform: uppercase; letter-spacing: 0.04em; }
     .pr { font-size: 14px; }
     .pv { font-size: 14px; font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 4px; }

@@ -18,6 +18,7 @@ await page.waitForTimeout(4000); // HA's launch screen fades out after the panel
 
 const name = `E2E climate ${Date.now() % 10000}`;
 await editor.locator('vt-field input').first().fill(name);
+await page.keyboard.press("Tab"); // inputs report their value when you leave them
 await page.waitForTimeout(500);
 await editor.evaluate((ed) =>
   ed.change({ temperature_sensor_entity_id: "input_number.fake_temperature_sensor1", underlying_entity_ids: ["climate.underlying_thermostat1"] }),
