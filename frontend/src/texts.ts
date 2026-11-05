@@ -16,7 +16,7 @@ export const CARD_TEXT: Record<string, { title: string; subtitle: string; icon: 
   motion: { title: "Motion", subtitle: "Switch preset when someone is in the room.", icon: "mdi:motion-sensor" },
   presence: {
     title: "Away from home",
-    subtitle: "Lower the temperature when nobody is home, using a home occupancy sensor (for example a person group).",
+    subtitle: "Lower the temperature when nobody is home, using a person entity or a home occupancy sensor.",
     icon: "mdi:home-export-outline",
   },
   power: { title: "Power & energy", subtitle: "Device consumption, load shedding and the central boiler.", icon: "mdi:flash" },
