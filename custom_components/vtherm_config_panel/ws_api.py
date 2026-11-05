@@ -35,7 +35,7 @@ _CENTRAL_FLAGS = (
 
 
 def async_register(hass: HomeAssistant) -> None:
-    for command in (ws_list, ws_get, ws_new, ws_describe, ws_save):
+    for command in (ws_list, ws_get, ws_new, ws_describe, ws_save, ws_presets):
         websocket_api.async_register_command(hass, command)
 
 
@@ -166,4 +166,33 @@ async def ws_save(hass: HomeAssistant, connection: websocket_api.ActiveConnectio
     connection.send_result(
         msg["id"],
         {"success": result.success, "entry_id": result.entry_id, "errors": result.errors, "incomplete": result.incomplete},
+    )
+
+
+def _preset_entities(hass: HomeAssistant, entry_id: str) -> dict[str, str]:
+    """VT's preset temperature numbers of one config entry, by translation key (e.g. ``eco_away_temp``)."""
+    registry = er.async_get(hass)
+    return {
+        e.translation_key: e.entity_id
+        for e in er.async_entries_for_config_entry(registry, entry_id)
+        if e.domain == "number" and e.translation_key and e.translation_key.endswith("_temp")
+    }
+
+
+@websocket_api.require_admin
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/presets", vol.Optional("entry_id"): str})
+@callback
+def ws_presets(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
+    """Preset temperature entities of a VTherm and of the central configuration.
+
+    The temperatures are not part of VT's configuration: they live in these number entities,
+    which VT creates for a VTherm only when it does not use the central presets.
+    """
+    central = _central_entry(hass)
+    connection.send_result(
+        msg["id"],
+        {
+            "own": _preset_entities(hass, msg["entry_id"]) if msg.get("entry_id") else {},
+            "central": _preset_entities(hass, central.entry_id) if central else {},
+        },
     )

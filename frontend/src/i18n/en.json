@@ -1,0 +1,617 @@
+{
+ "cards": {
+  "room": {
+   "title": "Room",
+   "subtitle": "What this thermostat is called and what it measures."
+  },
+  "devices": {
+   "title": "Devices",
+   "subtitle": "The heaters, valves or climates this thermostat drives."
+  },
+  "correction": {
+   "title": "Setpoint correction",
+   "subtitle": "The device's built-in sensor sits next to the heat, so VT raises or lowers the target it sends until your room sensor reaches your temperature."
+  },
+  "heating": {
+   "title": "Heating control",
+   "subtitle": "How much and how often to heat."
+  },
+  "presets": {
+   "title": "Presets",
+   "subtitle": "The target temperature of each preset."
+  },
+  "window": {
+   "title": "Open window",
+   "subtitle": "What happens when a window opens."
+  },
+  "motion": {
+   "title": "Motion",
+   "subtitle": "Switch preset when someone is in the room."
+  },
+  "presence": {
+   "title": "Away from home",
+   "subtitle": "Lower the temperature when nobody is home, using a person entity or a home occupancy sensor."
+  },
+  "power": {
+   "title": "Power & energy",
+   "subtitle": "Device consumption and load shedding."
+  },
+  "boiler": {
+   "title": "Central boiler",
+   "subtitle": "Turn the boiler on when any thermostat needs heat."
+  },
+  "safety": {
+   "title": "Sensor loss & manual changes",
+   "subtitle": "What to do when the room thermometer goes quiet, and how long a manual change lasts."
+  },
+  "auto_start_stop": {
+   "title": "Auto start/stop",
+   "subtitle": "Turn the climate off when it is not needed."
+  },
+  "lock": {
+   "title": "Lock",
+   "subtitle": "Stop people or automations from changing this thermostat."
+  },
+  "other": {
+   "title": "Other",
+   "subtitle": "Settings this page does not place yet."
+  }
+ },
+ "groups": {
+  "range": "Outdoor sensor and temperature range",
+  "valve": "Direct valve control",
+  "valve_limits": "Valve commands",
+  "sync": "Sync the device's internal temperature",
+  "tpi": "TPI coefficients",
+  "auto_tpi": "Auto-TPI learning",
+  "window_behaviour": "What happens",
+  "motion_detect": "Sensor",
+  "motion_behaviour": "What happens",
+  "shedding": "Load shedding",
+  "boiler_use": "Central boiler",
+  "failure": "Heating failure detection"
+ },
+ "fields": {
+  "name": {
+   "label": "Name",
+   "info": "Name of the thermostat and of its climate entity."
+  },
+  "temperature_sensor_entity_id": {
+   "label": "Room temperature sensor",
+   "hint": "Where people sit, away from windows and the heater.",
+   "info": "The temperature VT regulates on. Place it in the middle of the living space: next to a window it reacts to drafts, next to the heater it reads too warm and the room stays cold."
+  },
+  "humidity_sensor_entity_id": {
+   "label": "Humidity sensor",
+   "hint": "Optional. Shown on the thermostat, not used for heating.",
+   "info": "Exposes humidity on the thermostat card; it does not change regulation. When the room sensor's device also measures humidity, the panel pre-fills that sensor (VT's flow did this silently as 'enabled but empty')."
+  },
+  "last_seen_temperature_sensor_entity_id": {
+   "label": "Sensor 'last seen' time",
+   "hint": "Optional. Prevents false alarms from sensors that only report changes.",
+   "info": "A datetime entity telling when the temperature sensor last checked in (many Zigbee sensors have 'last_seen'). Battery sensors stay silent while the temperature is stable; without this, VT may think the sensor died and switch to sensor-loss mode.",
+   "diagram": "safety"
+  },
+  "external_temperature_sensor_entity_id": {
+   "label": "Outdoor temperature sensor",
+   "hint": "Used to heat more when it is cold outside.",
+   "info": "Feeds the outdoor part of the heating calculation (coef_ext). If it stops reporting, sensor-loss mode can trigger too, unless disabled globally in configuration.yaml."
+  },
+  "temp_min": {
+   "label": "Lowest settable temperature",
+   "info": "The thermostat will not accept a target below this. Default 7 °C."
+  },
+  "temp_max": {
+   "label": "Highest settable temperature",
+   "info": "The thermostat will not accept a target above this. Default 35 °C."
+  },
+  "step_temperature": {
+   "label": "Temperature step",
+   "info": "How much one +/− press changes the target. Default 0.1 °C."
+  },
+  "underlying_entity_ids": {
+   "label": "Devices to control",
+   "info": "over_switch: switches, input_booleans, selects or climates. over_valve: number entities for the valve opening. over_climate: climate entities."
+  },
+  "ac_mode": {
+   "label": "Air conditioning",
+   "hint": "The device can cool.",
+   "info": "over_switch / over_valve: only cooling is offered. over_climate: heating and cooling, if the device supports both. Adds cooling (clim) presets."
+  },
+  "inverse_switch_command": {
+   "label": "Inverted switch",
+   "hint": "For pilot-wire modules with a diode.",
+   "info": "On means heater off and off means heater on. Needed for some French pilot-wire setups (fil pilote) with a diode."
+  },
+  "heater_keep_alive": {
+   "label": "Keep-alive interval (s)",
+   "hint": "Resend the current state regularly. Empty: off.",
+   "info": "Some devices switch themselves off if they hear nothing for a while. VT then repeats the current on/off command at this interval."
+  },
+  "on_command_text": {
+   "label": "Custom on/off commands",
+   "hint": "Needed when a device is not a plain switch.",
+   "info": "Format command[/attribute[:value]], one per device, in the same order as the devices. Examples: select_option/option:comfort, set_hvac_mode/hvac_mode:heat. Plain switches use turn_on / turn_off automatically."
+  },
+  "used_by_controls_central_boiler": {
+   "label": "Needs the central boiler",
+   "hint": "Turn the boiler on when this room asks for heat.",
+   "info": "Counts this thermostat's devices for the central boiler (configured in the central configuration). Rooms on electric heaters usually stay off."
+  },
+  "auto_fan_mode": {
+   "label": "Boost fan when far from target",
+   "info": "Runs the device's fan at this level while the room is far from the target, so heat spreads faster. Falls back to the quietest mode once close."
+  },
+  "auto_regulation_dtemp": {
+   "label": "Smallest change sent (°)",
+   "hint": "Smaller target changes are not sent.",
+   "info": "Avoids sending a new target for every tiny change; some devices beep or drain batteries on each command. Too high and the correction stops working.",
+   "diagram": "send_threshold"
+  },
+  "auto_regulation_periode_min": {
+   "label": "Minimum time between changes (min)",
+   "info": "A new target is sent at most this often.",
+   "diagram": "send_threshold"
+  },
+  "opening_threshold_degree": {
+   "label": "Treat as closed below (%)",
+   "hint": "Requested openings below this close the valve.",
+   "info": "Requested opening below this value counts as 'no heat': the valve goes to its most closed position and the room counts as not heating (also for the central boiler).",
+   "diagram": "valve_curve"
+  },
+  "min_opening_degrees": {
+   "label": "Minimum opening when heating (%)",
+   "hint": "One value per valve, comma separated.",
+   "info": "As soon as the room needs heat the valve opens at least this far. Use it for valves with a dead zone where the first % let no water through. Example: 15 or '15, 20'.",
+   "diagram": "valve_curve"
+  },
+  "max_opening_degrees": {
+   "label": "Maximum opening (%)",
+   "hint": "One value per valve, comma separated.",
+   "info": "The valve never opens further. Limits flow, e.g. to balance radiators. Must be above the minimum opening.",
+   "diagram": "valve_curve"
+  },
+  "max_closing_degree": {
+   "label": "How far the valve may close (%)",
+   "hint": "100 = fully closed.",
+   "info": "Set below 100 to always leave a little water flowing, e.g. 90 keeps 10 % open (quieter, protects the pump).",
+   "diagram": "valve_curve"
+  },
+  "auto_regulation_mode": {
+   "label": "Correction strength",
+   "hint": "Start with Light, raise only if the room misses the target.",
+   "info": "The device regulates on its own sensor, which often sits next to the heat. VT shifts the target it sends so the room sensor reaches your temperature. Light: up to 1.5 °, Medium: 2 °, Strong: 3 °. Expert uses values from configuration.yaml. 'Direct valve control' instead sets the valve opening itself (needs an opening entity). More correction means more energy and wear.",
+   "diagram": "correction"
+  },
+  "auto_regulation_use_device_temp": {
+   "label": "Compensate the device's own sensor",
+   "hint": "Rarely needed. Try correction first.",
+   "info": "Adds (device temperature − room temperature) to the target. Example: room 18 °, device reads 22 °: VT sends 4 ° more so the device actually heats. Unstable device sensors make this worse."
+  },
+  "opening_degree_entity_ids": {
+   "label": "Valve opening entities",
+   "hint": "One per device, same order as the devices.",
+   "info": "The number entities that set each valve's opening."
+  },
+  "closing_degree_entity_ids": {
+   "label": "Valve closing entities",
+   "hint": "Optional. All or none.",
+   "info": "If the valve also has a closing entity, VT sets it to 100 − opening."
+  },
+  "sync_entity_ids": {
+   "label": "Entities to sync",
+   "hint": "One per device, same order as the devices.",
+   "info": "Either the device's temperature calibration entity (offset mode) or its external temperature input (direct mode). Some devices need an extra setting, e.g. Sonoff TRVZB: sensor_select = external."
+  },
+  "sync_with_calibration": {
+   "label": "Use calibration offset",
+   "hint": "On: adjust the device's offset. Off: send the room temperature.",
+   "info": "Offset mode works with most TRVs (local_temperature_calibration). Direct mode needs a device that accepts an external temperature."
+  },
+  "proportional_function": {
+   "label": "Algorithm",
+   "hint": "TPI is built in; plugins such as SmartPI add others.",
+   "info": "SmartPI learns the room and is recommended by VT's author."
+  },
+  "cycle_min": {
+   "label": "Cycle length (min)",
+   "hint": "5 minutes suits most rooms; longer for slow heating.",
+   "info": "VT recalculates once per cycle and, for switches, turns the heater on for part of it. Slow systems (underfloor, storage heaters) want longer cycles; too short and the heater never warms up.",
+   "diagram": "tpi_cycle"
+  },
+  "tpi_coef_int": {
+   "label": "Room gap factor (coef_int)",
+   "hint": "Higher: catches up faster. Lower if it overshoots.",
+   "info": "Heating share = coef_int × (target − room) + coef_ext × (target − outdoor). Reaching the target too slowly: raise it. Oscillating around the target: lower it. Default 0.6.",
+   "diagram": "tpi_formula"
+  },
+  "tpi_coef_ext": {
+   "label": "Outdoor factor (coef_ext)",
+   "hint": "Raise if the room settles below target.",
+   "info": "Compensates heat lost to the outside. Settles below the target: raise it. Settles above: lower it. Default 0.01.",
+   "diagram": "tpi_formula"
+  },
+  "minimal_activation_delay": {
+   "label": "Shortest on-time (s)",
+   "hint": "Shorter heating pulses are skipped.",
+   "info": "Avoids pulses too short for the heater to do anything. Default 10 s.",
+   "diagram": "tpi_cycle"
+  },
+  "minimal_deactivation_delay": {
+   "label": "Shortest off-time (s)",
+   "hint": "Shorter pauses are skipped (stays on).",
+   "info": "Avoids flicking off for a few seconds. Default 0.",
+   "diagram": "tpi_cycle"
+  },
+  "tpi_threshold_high": {
+   "label": "Stop heating above target + (°)",
+   "hint": "0 = off. Needs the resume value too.",
+   "info": "If the room gets this much warmer than the target, heating stops completely until it falls below target + resume value. Both values must be set.",
+   "diagram": "tpi_thresholds"
+  },
+  "tpi_threshold_low": {
+   "label": "Resume below target + (°)",
+   "hint": "Must be smaller than the stop value.",
+   "info": "See 'Stop heating above target'.",
+   "diagram": "tpi_thresholds"
+  },
+  "auto_tpi_learning_type": {
+   "label": "Learning type",
+   "hint": "Discovery for a new setup, Fine tuning to refine.",
+   "info": "Learning sessions take about 48 h and are started manually (service or Auto-TPI card). Discovery: fast, from scratch. Fine tuning: slow, small corrections."
+  },
+  "auto_tpi_heating_rate": {
+   "label": "Heating rate (°/h)",
+   "hint": "0 = measure it automatically.",
+   "info": "How fast the heater can warm the room at full power."
+  },
+  "heater_heating_time": {
+   "label": "Warm-up time (min)",
+   "hint": "Time to reach full power, e.g. 5 for an electric radiator."
+  },
+  "heater_cooling_time": {
+   "label": "Cool-down time (min)",
+   "hint": "Time to cool after stopping, e.g. 7 for an electric radiator."
+  },
+  "auto_tpi_aggressiveness": {
+   "label": "Aggressiveness",
+   "hint": "Lower (e.g. 0.8) if it keeps overshooting.",
+   "info": "Scales the learned coefficients down. 1.0 = use them as learned."
+  },
+  "auto_tpi_continuous_kext": {
+   "label": "Keep learning the outdoor factor",
+   "hint": "Slow background adjustment between sessions."
+  },
+  "auto_tpi_enable_advanced_settings": {
+   "label": "Show learning parameters"
+  },
+  "auto_tpi_avg_initial_weight": {
+   "label": "Weight of old values",
+   "hint": "1 = replace quickly, 50 = change slowly."
+  },
+  "auto_tpi_ema_alpha": {
+   "label": "Alpha",
+   "hint": "Higher reacts faster to recent cycles."
+  },
+  "auto_tpi_ema_decay_rate": {
+   "label": "Decay rate",
+   "hint": "Slows learning down over time."
+  },
+  "auto_tpi_continuous_kext_alpha": {
+   "label": "Background learning speed",
+   "hint": "Default 0.04 ≈ a few days to adapt."
+  },
+  "use_presets_central_config": {
+   "label": "Use the central preset temperatures",
+   "hint": "Off: this room has its own Eco/Comfort/Boost temperatures.",
+   "info": "Preset temperatures are number entities on the thermostat, or on the central configuration when this is on."
+  },
+  "use_central_mode": {
+   "label": "Follow the central mode switch",
+   "hint": "Lets one switch stop all rooms or set them to frost protection.",
+   "info": "The central configuration has a select (Auto, Stopped, Heat only, Cool only, Frost protection) that controls every thermostat with this on."
+  },
+  "window_sensor_entity_id": {
+   "label": "Window sensor",
+   "hint": "A binary sensor or a group of them.",
+   "info": "For several windows, make a binary_sensor group."
+  },
+  "window_delay": {
+   "label": "Wait before reacting (s)",
+   "hint": "Short airing does not stop the heating.",
+   "info": "The window must stay open this long before the action happens.",
+   "diagram": "window_delay"
+  },
+  "window_off_delay": {
+   "label": "Wait after closing (s)",
+   "hint": "Empty: same as above.",
+   "info": "The window must stay closed this long before heating resumes.",
+   "diagram": "window_delay"
+  },
+  "window_auto_open_threshold": {
+   "label": "Detect when falling faster than (°/h)",
+   "hint": "Lower detects sooner, with more false alarms. Try 3.",
+   "info": "VT watches the temperature slope. A sudden drop beyond this rate counts as an open window. Not for hallways or rooms with normal big swings.",
+   "diagram": "window_slope"
+  },
+  "window_auto_close_threshold": {
+   "label": "Consider closed when above (°/h)",
+   "hint": "Usually 0: the temperature stops falling.",
+   "diagram": "window_slope"
+  },
+  "window_auto_max_duration": {
+   "label": "Give up after (min)",
+   "hint": "Heating resumes even if it keeps cooling. Try 30–60.",
+   "diagram": "window_slope"
+  },
+  "window_action": {
+   "label": "When open",
+   "hint": "Turn off, fan only, frost protection or eco.",
+   "info": "Frost protection and Eco change the target without changing the preset, so the preset shown can differ from the target."
+  },
+  "motion_sensor_entity_id": {
+   "label": "Motion sensor",
+   "info": "Room level. The thermostat follows it only in the 'Activity' preset."
+  },
+  "motion_preset": {
+   "label": "Preset with motion",
+   "diagram": "motion"
+  },
+  "no_motion_preset": {
+   "label": "Preset without motion",
+   "diagram": "motion"
+  },
+  "motion_delay": {
+   "label": "Motion must last (s)",
+   "hint": "Walking through does not count.",
+   "diagram": "motion"
+  },
+  "motion_off_delay": {
+   "label": "Room empty after (s)",
+   "diagram": "motion"
+  },
+  "presence_sensor_entity_id": {
+   "label": "Home occupancy sensor",
+   "hint": "on/home = someone home, off/not_home = away.",
+   "info": "A person entity, or a binary sensor (a binary_sensor group works). A group of persons does not: VT's docs (French original too) recommend a template sensor for that. While away, the 'away' preset temperatures (separate entities) apply."
+  },
+  "device_power": {
+   "label": "Device power",
+   "hint": "Total of all devices; same unit everywhere.",
+   "info": "Used for the energy sensors, load shedding and the central boiler."
+  },
+  "power_unit": {
+   "label": "Unit"
+  },
+  "power_sensor_entity_id": {
+   "label": "Home consumption sensor",
+   "hint": "Total power the home uses right now."
+  },
+  "max_power_sensor_entity_id": {
+   "label": "Maximum allowed power sensor",
+   "hint": "Keep a margin below your main fuse.",
+   "info": "Not a safety feature: overload is still possible between sensor updates."
+  },
+  "power_temp": {
+   "label": "Temperature while shedding"
+  },
+  "safety_delay_min": {
+   "label": "Sensor silent for (min)",
+   "hint": "Then switch to a safe fixed power. Battery sensors: 120–240.",
+   "info": "If no temperature arrives for this long, VT stops trusting the sensor. Set 'last seen' in Room to avoid false alarms.",
+   "diagram": "safety"
+  },
+  "safety_default_on_percent": {
+   "label": "Fixed power during sensor loss",
+   "hint": "0.1 = 10 %. 0 risks freezing.",
+   "diagram": "safety"
+  },
+  "safety_min_on_percent": {
+   "label": "Only when heating at least",
+   "hint": "0.5 = 50 %. Below this, sensor loss is ignored.",
+   "info": "A heater running low cannot overheat the room, so no need to react.",
+   "diagram": "safety"
+  },
+  "manual_override_duration_min": {
+   "label": "Return to preset after a manual change (min)",
+   "hint": "0 = keep the manual temperature.",
+   "diagram": "override"
+  },
+  "repair_incorrect_state": {
+   "label": "Resend ignored commands",
+   "hint": "For relays or valves that sometimes miss a command.",
+   "info": "Max 5 retries in a row; frequent repairs point to a hardware or network problem."
+  },
+  "heating_failure_threshold": {
+   "label": "Heating hard means at least (%)",
+   "hint": "0.9 = 90 %.",
+   "diagram": "failure"
+  },
+  "cooling_failure_threshold": {
+   "label": "Heating off means at most (%)",
+   "hint": "0 = 0 %.",
+   "diagram": "failure"
+  },
+  "heating_failure_detection_delay": {
+   "label": "Alert after (min)",
+   "hint": "Raise for underfloor heating or large rooms.",
+   "diagram": "failure"
+  },
+  "temperature_change_tolerance": {
+   "label": "Ignore changes smaller than (°)",
+   "hint": "Filters sensor noise.",
+   "diagram": "failure"
+  },
+  "failure_detection_enable_template": {
+   "label": "Only detect when (template)",
+   "hint": "Optional."
+  },
+  "auto_start_stop_level": {
+   "label": "Reaction speed",
+   "hint": "Fast stops and restarts more often.",
+   "info": "Very slow ≈ 60 min between stop and restart, slow ≈ 30, medium ≈ 15, fast ≈ 7. Only restarts devices it stopped itself."
+  },
+  "lock_users": {
+   "label": "Block changes from the UI",
+   "info": "Window actions, safety and load shedding keep working while locked."
+  },
+  "lock_automations": {
+   "label": "Block automations and schedulers"
+  },
+  "lock_code": {
+   "label": "PIN code",
+   "hint": "4 digits. Optional."
+  },
+  "auto_relock_sec": {
+   "label": "Lock again after (s)",
+   "hint": "0 = stay unlocked."
+  },
+  "auto_regulation_dtemp@thermostat_over_valve": {
+   "label": "Smallest opening change sent (%)",
+   "hint": "Smaller changes are not sent to the valve.",
+   "info": "Limits how often the valve moves (noise, battery).",
+   "diagram": "send_threshold"
+  },
+  "auto_regulation_periode_min@thermostat_over_valve": {
+   "label": "Minimum time between valve updates (min)",
+   "info": "The valve gets a new opening at most this often.",
+   "diagram": "send_threshold"
+  },
+  "underlying_entity_ids@thermostat_over_switch": {
+   "label": "Devices to control",
+   "hint": "Several switches get shifted start times to smooth the power draw.",
+   "info": "over_switch: switches, input_booleans, selects or climates. over_valve: number entities for the valve opening. over_climate: climate entities. With several switches each one still gets its full on-time; VT only shifts their start so fewer run at once (smoother power draw). At high demand they overlap.",
+   "diagram": "stagger"
+  }
+ },
+ "diagrams": {
+  "tpi_cycle": {
+   "title": "Heating cycle",
+   "caption": "One bar per cycle: on for the computed share, off for the rest. Pulses shorter than the shortest on-time are skipped."
+  },
+  "tpi_formula": {
+   "title": "How much to heat",
+   "caption": "Two stacked bars for an example: room gap × coef_int + outdoor gap × coef_ext = heating share, capped at 100 %."
+  },
+  "tpi_thresholds": {
+   "title": "Stop and resume band",
+   "caption": "Temperature line above the target: crossing target+stop turns heating off, falling below target+resume turns it back on."
+  },
+  "valve_curve": {
+   "title": "Requested vs sent opening",
+   "caption": "x: opening the algorithm wants, y: opening sent. Flat at the closed position until 'treat as closed', jumps to the minimum, rises, flattens at the maximum."
+  },
+  "send_threshold": {
+   "title": "Only meaningful changes are sent",
+   "caption": "A wanted value wiggling, and the sent value as steps that only move when the change exceeds the threshold and enough time has passed."
+  },
+  "window_delay": {
+   "title": "Window timeline",
+   "caption": "Window open bar; short opening below the wait: nothing; long opening: action after the wait, resumes after the closed wait."
+  },
+  "window_slope": {
+   "title": "Temperature-drop detection",
+   "caption": "Temperature line with a sudden fall: slope beyond the threshold marks 'open', ends when the slope recovers or the max duration passes."
+  },
+  "motion": {
+   "title": "Motion timeline",
+   "caption": "Motion pulses; a short pass does nothing, staying switches to the motion preset, leaving returns after the empty delay."
+  },
+  "safety": {
+   "title": "Sensor loss",
+   "caption": "Sensor report dots, then a gap longer than the delay: heating switches to the fixed power until a report arrives."
+  },
+  "override": {
+   "title": "Manual change",
+   "caption": "Preset target line, a manual bump, back to the preset target after the duration."
+  },
+  "failure": {
+   "title": "Heating failure",
+   "caption": "Heating share at ≥ threshold for longer than the delay while temperature stays flat: alert."
+  },
+  "correction": {
+   "title": "Setpoint correction",
+   "caption": "Room temp below target; the target sent to the device is raised by the correction, capped by strength."
+  },
+  "stagger": {
+   "title": "Several heaters in one room",
+   "caption": "Each heater on for the same share of the cycle, start times shifted."
+  }
+ },
+ "types": {
+  "thermostat_over_switch": {
+   "title": "Switch a heater on and off",
+   "body": "Versatile Thermostat turns the device on for part of each cycle, more when the room is colder.",
+   "examples": "Electric radiators, heating cables, relays, smart plugs, pilot-wire modules."
+  },
+  "thermostat_over_valve": {
+   "title": "Set how far a valve opens",
+   "body": "Versatile Thermostat sends an opening percentage to the valve and adjusts it as the room warms up.",
+   "examples": "Radiator valves that expose their opening as a number (e.g. some Zigbee TRVs)."
+  },
+  "thermostat_over_climate": {
+   "title": "Drive a device with its own thermostat",
+   "body": "The device regulates itself; Versatile Thermostat sets its target and corrects it using your room sensor.",
+   "examples": "Thermostatic radiator valves, air conditioners, heat pumps."
+  },
+  "thermostat_central_config": {
+   "title": "Central configuration",
+   "body": "Shared defaults (outdoor sensor, presets, window and safety behaviour) that every VTherm can take over.",
+   "examples": "Create it first if you have several rooms."
+  }
+ },
+ "window": {
+  "question": "How should this room notice an open window?",
+  "off": "No detection",
+  "sensor": "Window sensor",
+  "drop": "Temperature drop"
+ },
+ "presets": {
+  "preset": "Preset",
+  "normal": "Normal",
+  "away": "Away",
+  "cool": "Cooling",
+  "cool_away": "Cooling, away",
+  "frost": "Frost protection",
+  "eco": "Eco",
+  "comfort": "Comfort",
+  "boost": "Boost",
+  "from_central": "These temperatures come from the central configuration and apply to every thermostat that uses it.",
+  "saved_now": "Changes here apply immediately.",
+  "pending": "Save first: the thermostat creates its own preset temperatures when it stops using the central ones."
+ },
+ "ui": {
+  "panel_title": "Versatile Thermostat",
+  "save": "Save",
+  "create": "Create",
+  "unsaved": "Unsaved changes",
+  "required_empty": "{n} required empty",
+  "saved": "Saved. The thermostat has been reloaded.",
+  "not_saved_incomplete": "Not saved: some required settings are still empty. They are marked in the index.",
+  "not_saved_rejected": "Not saved: Versatile Thermostat rejected a setting. It is marked below.",
+  "advanced": "Advanced settings",
+  "from_central": "From the central configuration",
+  "central_nothing": "Nothing set there, so Versatile Thermostat's defaults apply.",
+  "edit_central": "Edit the central configuration",
+  "override": "Override central configuration",
+  "state_off": "Off",
+  "state_error": "Error",
+  "state_empty": "{n} empty",
+  "state_central": "Central",
+  "turn_on": "Turn on",
+  "turn_off": "Turn off",
+  "new": "New",
+  "new_vtherm": "New VTherm",
+  "choose_type": "Choose a type",
+  "shared_defaults": "Shared defaults",
+  "no_climate": "No climate entity",
+  "not_loaded": "Not loaded",
+  "thermostats": "Thermostats",
+  "chooser_question": "What does this thermostat control?",
+  "chooser_no_central": "No central configuration yet. With several rooms, create it first: every thermostat can then take over its defaults.",
+  "empty": "No Versatile Thermostats yet. Use “New” above to create the first one.",
+  "discard": "Discard the unsaved changes on this thermostat?",
+  "sections": "Sections",
+  "more_info": "More information"
+ }
+}

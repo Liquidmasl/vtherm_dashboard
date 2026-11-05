@@ -1,7 +1,7 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { CENTRAL, TYPE_ICONS } from "./switcher";
-import { TYPE_TEXT } from "./texts";
+import { typeText, ui } from "./i18n";
 
 /** First step of a new VTherm: what kind of device it drives, explained. */
 @customElement("vtherm-type-chooser")
@@ -19,13 +19,13 @@ export class VThermTypeChooser extends LitElement {
     const devices = this.types.filter((t) => t !== CENTRAL);
     const ordered = this.hasCentral ? devices : [CENTRAL, ...devices];
     return html`
-      <h2>What does this thermostat control?</h2>
+      <h2>${ui("chooser_question")}</h2>
       ${this.hasCentral
         ? ""
-        : html`<p class="hint">No central configuration yet. With several rooms, create it first: every thermostat can then take over its defaults.</p>`}
+        : html`<p class="hint">${ui("chooser_no_central")}</p>`}
       <div class="grid">
         ${ordered.map((t) => {
-          const text = TYPE_TEXT[t];
+          const text = typeText(t);
           return html`<button class="type ${t === CENTRAL ? "central" : ""}" @click=${() => this.pick(t)}>
             <ha-icon icon=${TYPE_ICONS[t]}></ha-icon>
             <span class="title">${text?.title ?? t}</span>

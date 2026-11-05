@@ -3,6 +3,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import { listEntries, type EntrySummary } from "./api";
 import type { VThermEditor } from "./editor";
 import { loadHaFormElements } from "./load-ha-elements";
+import { setLanguage, ui } from "./i18n";
 import { loadVtTranslations } from "./localize";
 import { CENTRAL, CHOOSE_TYPE } from "./switcher";
 import "./chooser";
@@ -41,6 +42,7 @@ export class VThermConfigPanel extends LitElement {
   }
 
   async firstUpdated() {
+    setLanguage(this.hass.language);
     await Promise.all([loadHaFormElements(), loadVtTranslations(this.hass), this.refreshEntries()]);
     this.ready = true;
   }
@@ -53,7 +55,7 @@ export class VThermConfigPanel extends LitElement {
 
   private navigate(sel: Selection) {
     const editor = this.renderRoot.querySelector("vtherm-editor") as VThermEditor | null;
-    if (editor?.dirty && !confirm("Discard the unsaved changes on this thermostat?")) return;
+    if (editor?.dirty && !confirm(ui("discard"))) return;
     const query = sel.entryId ? `?entry=${sel.entryId}` : sel.newType ? `?new=${sel.newType}` : "";
     history.pushState(null, "", `${window.location.pathname}${query}`);
     window.dispatchEvent(new CustomEvent("location-changed"));
@@ -71,7 +73,7 @@ export class VThermConfigPanel extends LitElement {
     return html`
       <div class="header">
         <ha-menu-button .hass=${this.hass} .narrow=${this.narrow}></ha-menu-button>
-        <div class="title">Versatile Thermostat</div>
+        <div class="title">${ui("panel_title")}</div>
       </div>
       ${this.ready
         ? html`
@@ -104,7 +106,7 @@ export class VThermConfigPanel extends LitElement {
                     this.navigate({ entryId: e.detail.entryId });
                   }}
                 ></vtherm-editor>`
-              : html`<div class="empty">No Versatile Thermostats yet. Use “New” above to create the first one.</div>`}
+              : html`<div class="empty">${ui("empty")}</div>`}
           `
         : html`<div class="loading"><ha-spinner></ha-spinner></div>`}
     `;

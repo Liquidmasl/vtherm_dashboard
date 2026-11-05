@@ -82,7 +82,7 @@ export function buildCards(layout: Layout, data: Infos, pickedMethod?: string): 
       methodOff = current === "off";
     }
     const groups = methodOff ? [] : card.groups.map((g) => groupView(g, layout, data, hidden)).filter((g): g is GroupView => !!g);
-    if (!groups.length && !featureKey && !method) return;
+    if (!groups.length && !featureKey && !method && !card.always) return;
     const steps = new Set<string>();
     groups.forEach((g) => [...g.own, ...g.inherited].forEach((f) => steps.add(f.desc.step)));
     cards.push({

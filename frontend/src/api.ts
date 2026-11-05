@@ -42,6 +42,8 @@ export interface LayoutCard {
   control?: GroupControl;
   /** A choice between alternative sets of fields (window: sensor or temperature drop). */
   method?: { feature?: string; options: Record<string, string[]> };
+  /** Shown even without fields (the card renders more than fields). */
+  always?: boolean;
   groups: LayoutGroup[];
 }
 
@@ -86,3 +88,12 @@ export const describe = (hass: any, data: Infos) => hass.callWS({ type: `${P}/de
 
 export const save = (hass: any, data: Infos, entry_id?: string) =>
   hass.callWS({ type: `${P}/save`, data, ...(entry_id ? { entry_id } : {}) }) as Promise<SaveResult>;
+
+/** Preset temperature number entities by translation key (e.g. "eco_away_temp"). */
+export interface PresetEntities {
+  own: Record<string, string>;
+  central: Record<string, string>;
+}
+
+export const getPresets = (hass: any, entry_id?: string) =>
+  hass.callWS({ type: `${P}/presets`, ...(entry_id ? { entry_id } : {}) }) as Promise<PresetEntities>;

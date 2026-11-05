@@ -1,6 +1,7 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import type { EntrySummary } from "./api";
+import { ui } from "./i18n";
 import { thermostatTypeLabel } from "./localize";
 
 export const CENTRAL = "thermostat_central_config";
@@ -33,18 +34,18 @@ export class VThermSwitcher extends LitElement {
 
   render() {
     return html`
-      <div class="row" role="tablist" aria-label="Thermostats">
+      <div class="row" role="tablist" aria-label=${ui("thermostats")}>
         ${this.entries.map((e) => this.tile(e))}
         ${this.newType
           ? html`<div class="tile selected new" role="tab" aria-selected="true">
               <ha-icon icon=${TYPE_ICONS[this.newType] ?? "mdi:plus"}></ha-icon>
               <div class="main">
-                <div class="name">New VTherm</div>
-                <div class="sub">${TYPE_ICONS[this.newType] ? thermostatTypeLabel(this.hass, this.newType) : "Choose a type"}</div>
+                <div class="name">${ui("new_vtherm")}</div>
+                <div class="sub">${TYPE_ICONS[this.newType] ? thermostatTypeLabel(this.hass, this.newType) : ui("choose_type")}</div>
               </div>
             </div>`
           : html`<button class="tile add" @click=${() => this.select({ newType: CHOOSE_TYPE })}>
-              <ha-icon icon="mdi:plus"></ha-icon><span>New</span>
+              <ha-icon icon="mdi:plus"></ha-icon><span>${ui("new")}</span>
             </button>`}
       </div>
     `;
@@ -69,7 +70,7 @@ export class VThermSwitcher extends LitElement {
       <div class="main">
         <div class="name">${e.title}</div>
         ${central
-          ? html`<div class="sub">Shared defaults</div>`
+          ? html`<div class="sub">${ui("shared_defaults")}</div>`
           : st
             ? html`<div class="temps">
                   <span class="cur">${cur ?? "–"}${unit}</span><span class="arrow">→</span><span>${target ?? "–"}${unit}</span>
@@ -77,7 +78,7 @@ export class VThermSwitcher extends LitElement {
                 <div class="sub">
                   <span class="dot"></span>${this.statusText(st)}
                 </div>`
-            : html`<div class="sub">${e.loaded ? "No climate entity" : "Not loaded"}</div>`}
+            : html`<div class="sub">${e.loaded ? ui("no_climate") : ui("not_loaded")}</div>`}
       </div>
     </button>`;
   }

@@ -1,10 +1,10 @@
 import { LitElement, html, css, nothing, type PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { describe, getEntry, newDraft, save, type Infos, type Layout } from "./api";
+import { describe, getEntry, getPresets, newDraft, save, type Infos, type Layout, type PresetEntities } from "./api";
 import { isBoolean, isWide } from "./field";
 import "./field";
+import { cardText, fieldText, groupTitle, presetText, ui, windowText } from "./i18n";
 import { errorText, fieldHelper, fieldLabel, localizeSelectorValue, thermostatTypeLabel } from "./localize";
-import { CARD_TEXT, GROUP_TITLE, METHOD_QUESTION, METHOD_TEXT } from "./texts";
 import { buildCards, hasRequired, missingByCard, withDefaults, type CardView, type FieldView, type GroupView } from "./view";
 
 const WIDE_PX = 760; // width from which the index sits beside the cards instead of above them
@@ -27,6 +27,7 @@ export class VThermEditor extends LitElement {
   @state() private banner?: { type: "error" | "success" | "warning"; text: string };
   @state() private loadError?: string;
   @state() private wide = true;
+  @state() private presets: PresetEntities = { own: {}, central: {} };
 
   private describeSeq = 0;
   private resizer = new ResizeObserver(([entry]) => (this.wide = entry.contentRect.width >= WIDE_PX));
@@ -53,6 +54,7 @@ export class VThermEditor extends LitElement {
     this.windowMethod = undefined;
     this.layout = undefined;
     try {
+      getPresets(this.hass, this.entryId).then((p) => (this.presets = p));
       if (this.entryId) {
         const res = await getEntry(this.hass, this.entryId);
         this.heading = res.title;
@@ -119,16 +121,18 @@ export class VThermEditor extends LitElement {
       const res = await save(this.hass, this.data, this.entryId);
       if (res.success) {
         this.dirty = false;
-        this.banner = { type: "success", text: "Saved. The thermostat has been reloaded." };
+        this.banner = { type: "success", text: ui("saved") };
         this.dispatchEvent(new CustomEvent("vtherm-saved", { bubbles: true, composed: true }));
+        // VT creates or drops the thermostat's own preset entities on reload.
+        setTimeout(() => getPresets(this.hass, this.entryId).then((p) => (this.presets = p)), 3000);
         if (!this.entryId && res.entry_id) {
           this.dispatchEvent(new CustomEvent("vtherm-created", { detail: { entryId: res.entry_id }, bubbles: true, composed: true }));
         }
       } else if (res.incomplete) {
-        this.banner = { type: "warning", text: "Not saved: some required settings are still empty. They are marked in the index." };
+        this.banner = { type: "warning", text: ui("not_saved_incomplete") };
       } else {
         this.errors = res.errors;
-        this.banner = { type: "error", text: "Not saved: Versatile Thermostat rejected a setting. It is marked below." };
+        this.banner = { type: "error", text: ui("not_saved_rejected") };
         const step = Object.keys(res.errors)[0];
         const card = this.cards().find((c) => c.steps.has(step));
         if (card) this.updateComplete.then(() => this.scrollToCard(card.id));
@@ -171,10 +175,10 @@ export class VThermEditor extends LitElement {
           <div class="name">${this.data.name || this.heading}</div>
           <div class="sub">${thermostatTypeLabel(this.hass, this.data.thermostat_type)}${this.entryId ? "" : " · new"}</div>
         </div>
-        ${missingCount ? html`<span class="chip warn">${missingCount} required empty</span>` : nothing}
-        ${this.dirty ? html`<span class="chip">Unsaved changes</span>` : nothing}
+        ${missingCount ? html`<span class="chip warn">${ui("required_empty", { n: missingCount })}</span>` : nothing}
+        ${this.dirty ? html`<span class="chip">${ui("unsaved")}</span>` : nothing}
         <ha-button .disabled=${this.saving || (!this.dirty && !!this.entryId)} @click=${this.onSave}>
-          ${this.entryId ? "Save" : "Create"}
+          ${this.entryId ? ui("save") : ui("create")}
         </ha-button>
       </div>
       <div class="body ${this.wide ? "wide" : "narrow"}">
@@ -193,15 +197,15 @@ export class VThermEditor extends LitElement {
   }
 
   private renderIndex(cards: CardView[], missing: Record<string, string[]>, fieldErrors: Record<string, string>) {
-    return html`<nav class="index" aria-label="Sections">
+    return html`<nav class="index" aria-label=${ui("sections")}>
       ${cards.map((card) => {
-        const text = CARD_TEXT[card.id] ?? CARD_TEXT.other;
+        const text = cardText(card.id);
         let status = html`<ha-icon class="ok" icon="mdi:check"></ha-icon>`;
-        if (!card.featureOn) status = html`<span class="state">Off</span>`;
-        else if (this.cardHasError(card, fieldErrors)) status = html`<span class="state err">Error</span>`;
-        else if (missing[card.id]) status = html`<span class="state warn">${missing[card.id].length} empty</span>`;
+        if (!card.featureOn) status = html`<span class="state">${ui("state_off")}</span>`;
+        else if (this.cardHasError(card, fieldErrors)) status = html`<span class="state err">${ui("state_error")}</span>`;
+        else if (missing[card.id]) status = html`<span class="state warn">${ui("state_empty", { n: missing[card.id].length })}</span>`;
         else if (card.groups.every((g) => g.centralKey && g.usesCentral))
-          status = html`<span class="state">Central</span>`;
+          status = html`<span class="state">${ui("state_central")}</span>`;
         return html`<button class=${card.featureOn ? "" : "off"} @click=${() => this.scrollToCard(card.id)}>
           <ha-icon icon=${text.icon}></ha-icon><span class="label">${text.title}</span>${status}
         </button>`;
@@ -215,7 +219,7 @@ export class VThermEditor extends LitElement {
   }
 
   private renderCard(card: CardView, fieldErrors: Record<string, string>, missing: Record<string, string[]>) {
-    const text = CARD_TEXT[card.id] ?? CARD_TEXT.other;
+    const text = cardText(card.id);
     const baseErrors = [...card.steps].map((s) => this.errors[s]?.base).filter(Boolean) as string[];
     return html`
       <section
@@ -235,6 +239,7 @@ export class VThermEditor extends LitElement {
           ? html`
               ${baseErrors.map((code) => html`<ha-alert alert-type="error">${errorText(this.hass, code)}</ha-alert>`)}
               ${card.groups.map((g) => this.renderGroup(g, fieldErrors))}
+              ${card.id === "presets" ? this.presetTable() : nothing}
             `
           : nothing}
       </section>
@@ -242,7 +247,7 @@ export class VThermEditor extends LitElement {
   }
 
   private renderGroup(g: GroupView, fieldErrors: Record<string, string>) {
-    const title = GROUP_TITLE[g.id];
+    const title = groupTitle(g.id);
     const main = g.own.filter((f) => f.level !== "advanced");
     const advanced = g.own.filter((f) => f.level === "advanced");
     const showHeader = title || g.featureKey;
@@ -261,7 +266,7 @@ export class VThermEditor extends LitElement {
               ${g.inherited.length ? this.inheritedBlock(g.inherited) : nothing}
               ${advanced.length
                 ? html`<details class="adv">
-                    <summary>Advanced settings <span class="count">${advanced.length}</span></summary>
+                    <summary>${ui("advanced")} <span class="count">${advanced.length}</span></summary>
                     <div class="fields">${advanced.map((f) => this.field(f, fieldErrors))}</div>
                   </details>`
                 : nothing}
@@ -271,16 +276,24 @@ export class VThermEditor extends LitElement {
     `;
   }
 
+  /** Panel label in supported languages, VT's own label otherwise. */
+  private label(f: FieldView): string {
+    return fieldText(f.key, this.data.thermostat_type)?.label ?? fieldLabel(this.hass, f.desc.step, f.key, this.layout!.placeholders);
+  }
+
   private field(f: FieldView, fieldErrors: Record<string, string>, readOnly = false) {
     const p = this.layout!.placeholders;
+    const ft = fieldText(f.key, this.data.thermostat_type);
     const value = readOnly ? this.layout!.central_values[f.key] : this.data[f.key];
     return html`<vt-field
       class=${isBoolean(f.desc.schema) ? "bool" : isWide(f.desc.schema) ? "wide" : ""}
       .hass=${this.hass}
       .schema=${f.desc.schema}
       .value=${value}
-      .label=${fieldLabel(this.hass, f.desc.step, f.key, p)}
-      .helper=${fieldHelper(this.hass, f.desc.step, f.key, p)}
+      .label=${this.label(f)}
+      .hint=${ft?.hint ?? ""}
+      .info=${ft ? (ft.info ?? "") : fieldHelper(this.hass, f.desc.step, f.key, p)}
+      .diagram=${ft?.diagram}
       .error=${readOnly ? "" : (fieldErrors[f.key] ?? "")}
       .disabled=${readOnly}
       .localizeValue=${localizeSelectorValue(this.hass)}
@@ -296,11 +309,11 @@ export class VThermEditor extends LitElement {
     return html`<details class="inherited">
       <summary>
         <ha-icon icon="mdi:link-variant"></ha-icon>
-        <span class="from">From the central configuration</span>
+        <span class="from">${ui("from_central")}</span>
         ${values.length
           ? html`<span class="values">${values.map(
               (f) => html`<span class="kv"
-                ><span class="k">${fieldLabel(this.hass, f.desc.step, f.key, p)}</span>
+                ><span class="k">${this.label(f)}</span>
                 <span class="v">${this.formatValue(this.layout!.central_values[f.key])}</span></span
               >`,
             )}</span>`
@@ -309,10 +322,69 @@ export class VThermEditor extends LitElement {
       <div class="fields">${fields.map((f) => this.field(f, {}, true))}</div>
       ${centralId
         ? html`<a class="central-link" href="?entry=${centralId}" @click=${(e: Event) => this.openCentral(e, centralId)}
-            >Edit the central configuration</a
+            >${ui("edit_central")}</a
           >`
         : nothing}
     </details>`;
+  }
+
+  /**
+   * Preset temperatures. They are not part of VT's configuration but number entities, on this
+   * thermostat when it has its own presets, otherwise on the central configuration.
+   */
+  private presetTable() {
+    const central = this.data.thermostat_type === "thermostat_central_config";
+    const usesCentral = !central && this.data.use_presets_central_config !== false;
+    const entities = usesCentral ? this.presets.central : this.presets.own;
+    const columns: { id: "normal" | "away" | "cool" | "cool_away"; suffix: string }[] = [
+      { id: "normal", suffix: "" },
+      ...(central || this.data.use_presence_feature ? [{ id: "away", suffix: "_away" }] : []),
+      ...(central || this.data.ac_mode ? [{ id: "cool", suffix: "_ac" }] : []),
+      ...(central || (this.data.ac_mode && this.data.use_presence_feature) ? [{ id: "cool_away", suffix: "_ac_away" }] : []),
+    ] as typeof columns;
+    const rows = ["frost", "eco", "comfort", "boost"] as const;
+    if (!Object.keys(entities).length) {
+      return html`<p class="note">${presetText("pending")}</p>`;
+    }
+    const unit = this.hass.config?.unit_system?.temperature ?? "°";
+    return html`
+      <div class="presets" style="--cols: ${columns.length}">
+        <span class="ph">${presetText("preset")}</span>
+        ${columns.map((c) => html`<span class="ph">${presetText(c.id)}</span>`)}
+        ${rows.map(
+          (r) => html`
+            <span class="pr">${presetText(r)}</span>
+            ${columns.map((c) => {
+              const id = entities[`${r}${c.suffix}_temp`];
+              const st = id ? this.hass.states[id] : undefined;
+              if (!st) return html`<span class="pv none">–</span>`;
+              return usesCentral
+                ? html`<span class="pv">${st.state} ${unit}</span>`
+                : html`<span class="pv"
+                    ><input
+                      type="number"
+                      .value=${st.state}
+                      step=${st.attributes.step ?? 0.1}
+                      min=${st.attributes.min ?? ""}
+                      max=${st.attributes.max ?? ""}
+                      aria-label="${presetText(r)} ${presetText(c.id)}"
+                      @change=${(e: any) => this.hass.callService("number", "set_value", { entity_id: id, value: Number(e.target.value) })}
+                    />
+                    ${unit}</span
+                  >`;
+            })}
+          `,
+        )}
+      </div>
+      <p class="note">
+        ${usesCentral ? presetText("from_central") : presetText("saved_now")}
+        ${usesCentral && this.layout?.central_entry_id
+          ? html`<a class="central-link" href="?entry=${this.layout.central_entry_id}" @click=${(e: Event) => this.openCentral(e, this.layout!.central_entry_id!)}
+              >${ui("edit_central")}</a
+            >`
+          : nothing}
+      </p>
+    `;
   }
 
   private openCentral(e: Event, id: string) {
@@ -330,7 +402,7 @@ export class VThermEditor extends LitElement {
   private featureSwitch(key: string, on: boolean) {
     return html`<ha-switch
       .checked=${on}
-      aria-label=${on ? "Turn off" : "Turn on"}
+      aria-label=${on ? ui("turn_off") : ui("turn_on")}
       @change=${(e: any) => this.change({ [key]: e.target.checked })}
     ></ha-switch>`;
   }
@@ -339,17 +411,17 @@ export class VThermEditor extends LitElement {
   private overrideToggle(key: string, usesCentral: boolean) {
     return html`<label class="override">
       <ha-switch .checked=${!usesCentral} @change=${(e: any) => this.change({ [key]: !e.target.checked })}></ha-switch>
-      <span>Override central configuration</span>
+      <span>${ui("override")}</span>
     </label>`;
   }
 
   private methodChoice(method: NonNullable<CardView["method"]>) {
-    return html`<div class="question">${METHOD_QUESTION}</div>
-      <div class="seg wide" role="radiogroup" aria-label=${METHOD_QUESTION}>
+    return html`<div class="question">${windowText("question")}</div>
+      <div class="seg wide" role="radiogroup" aria-label=${windowText("question")}>
       ${method.options.map(
         (id) =>
           html`<button role="radio" aria-checked=${id === method.current} class=${id === method.current ? "on" : ""} @click=${() => this.setWindowMethod(id)}>
-            ${METHOD_TEXT[id] ?? id}
+            ${windowText(id as "off" | "sensor" | "drop")}
           </button>`,
       )}
     </div>`;
@@ -447,5 +519,17 @@ export class VThermEditor extends LitElement {
     .inherited[open] > summary { margin-bottom: 12px; }
     .inherited .fields { opacity: 0.75; }
     .central-link { display: inline-block; margin-top: 10px; font-size: 13px; color: var(--primary-color); }
+    .presets { display: grid; grid-template-columns: minmax(110px, auto) repeat(var(--cols), minmax(90px, 140px)); gap: 6px 16px; align-items: center; }
+    .ph { font-size: 12px; color: var(--secondary-text-color); text-transform: uppercase; letter-spacing: 0.04em; }
+    .pr { font-size: 14px; }
+    .pv { font-size: 14px; font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: 4px; }
+    .pv.none { color: var(--secondary-text-color); }
+    .pv input {
+      width: 70px; padding: 6px 8px; font: inherit; color: var(--primary-text-color); border-radius: 6px;
+      background: var(--input-fill-color, var(--secondary-background-color)); border: 1px solid var(--divider-color);
+    }
+    .pv input:focus { outline: 2px solid var(--primary-color); outline-offset: -1px; }
+    .note { margin: 0; font-size: 13px; color: var(--secondary-text-color); }
+    .note .central-link { margin: 0 0 0 6px; }
   `;
 }

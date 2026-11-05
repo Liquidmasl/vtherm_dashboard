@@ -126,6 +126,8 @@ CARDS: list[dict[str, Any]] = [
     },
     {
         "id": "presets",
+        # Always shown: the card also holds the preset temperatures, which are entities, not fields.
+        "always": True,
         "groups": [_group("presets", _f(("use_presets_central_config", E), ("use_central_mode", C)))],
     },
     {

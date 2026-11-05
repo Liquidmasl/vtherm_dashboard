@@ -1,0 +1,617 @@
+{
+ "cards": {
+  "room": {
+   "title": "Pièce",
+   "subtitle": "Le nom du thermostat et ce qu'il mesure."
+  },
+  "devices": {
+   "title": "Équipements",
+   "subtitle": "Les radiateurs, vannes ou climatiseurs pilotés."
+  },
+  "correction": {
+   "title": "Correction de consigne",
+   "subtitle": "Le capteur intégré de l'appareil est près de la chaleur : VT monte ou baisse la consigne envoyée jusqu'à ce que le capteur de la pièce atteigne votre température."
+  },
+  "heating": {
+   "title": "Régulation",
+   "subtitle": "Combien et à quelle fréquence chauffer."
+  },
+  "presets": {
+   "title": "Presets",
+   "subtitle": "La température de chaque preset."
+  },
+  "window": {
+   "title": "Fenêtre ouverte",
+   "subtitle": "Ce qui se passe quand une fenêtre s'ouvre."
+  },
+  "motion": {
+   "title": "Mouvement",
+   "subtitle": "Changer de preset quand quelqu'un est dans la pièce."
+  },
+  "presence": {
+   "title": "Absence du domicile",
+   "subtitle": "Baisser la température quand personne n'est là, avec une entité person ou un capteur de présence."
+  },
+  "power": {
+   "title": "Puissance et énergie",
+   "subtitle": "Consommation de l'équipement et délestage."
+  },
+  "boiler": {
+   "title": "Chaudière centrale",
+   "subtitle": "Allumer la chaudière quand un thermostat demande de la chaleur."
+  },
+  "safety": {
+   "title": "Capteur perdu et changements manuels",
+   "subtitle": "Que faire quand le thermomètre se tait, et combien de temps dure un changement manuel."
+  },
+  "auto_start_stop": {
+   "title": "Arrêt/démarrage auto",
+   "subtitle": "Éteindre le climatiseur quand il n'est pas utile."
+  },
+  "lock": {
+   "title": "Verrouillage",
+   "subtitle": "Empêcher les personnes ou automatisations de modifier ce thermostat."
+  },
+  "other": {
+   "title": "Autres",
+   "subtitle": "Réglages que cette page ne place pas encore."
+  }
+ },
+ "groups": {
+  "range": "Capteur extérieur et plage de température",
+  "valve": "Contrôle direct de la vanne",
+  "valve_limits": "Commandes de la vanne",
+  "sync": "Synchroniser la température interne de l'appareil",
+  "tpi": "Coefficients TPI",
+  "auto_tpi": "Apprentissage Auto-TPI",
+  "window_behaviour": "Ce qui se passe",
+  "motion_detect": "Capteur",
+  "motion_behaviour": "Ce qui se passe",
+  "shedding": "Délestage",
+  "boiler_use": "Chaudière centrale",
+  "failure": "Détection de panne de chauffe"
+ },
+ "fields": {
+  "name": {
+   "label": "Nom",
+   "info": "Nom du thermostat et de son entité climate."
+  },
+  "temperature_sensor_entity_id": {
+   "label": "Capteur de température de la pièce",
+   "hint": "Là où l'on vit, loin des fenêtres et du radiateur.",
+   "info": "La température que VT régule. Placez-le au milieu de la pièce : près d'une fenêtre il réagit aux courants d'air, près du radiateur il lit trop chaud et la pièce reste froide."
+  },
+  "humidity_sensor_entity_id": {
+   "label": "Capteur d'humidité",
+   "hint": "Facultatif. Affiché sur le thermostat, sans effet sur le chauffage.",
+   "info": "Expose l'humidité sur le thermostat ; la régulation n'en tient pas compte. Si l'appareil du capteur de température mesure aussi l'humidité, le panneau propose ce capteur."
+  },
+  "last_seen_temperature_sensor_entity_id": {
+   "label": "Dernier contact du capteur",
+   "hint": "Facultatif. Évite les fausses alertes des capteurs qui n'envoient que les changements.",
+   "info": "Une entité date/heure indiquant le dernier contact du capteur de température (« last_seen » sur beaucoup de capteurs Zigbee). Un capteur sur pile reste muet tant que la température ne bouge pas ; sans cette entité, VT peut croire qu'il est en panne et passer en mode capteur perdu.",
+   "diagram": "safety"
+  },
+  "external_temperature_sensor_entity_id": {
+   "label": "Capteur de température extérieure",
+   "hint": "Pour chauffer plus quand il fait froid dehors.",
+   "info": "Alimente la partie extérieure du calcul (coef_ext). S'il ne répond plus, le mode capteur perdu peut aussi se déclencher, sauf si c'est désactivé dans configuration.yaml."
+  },
+  "temp_min": {
+   "label": "Température minimale réglable",
+   "info": "Le thermostat refuse une consigne plus basse. 7 °C par défaut."
+  },
+  "temp_max": {
+   "label": "Température maximale réglable",
+   "info": "Le thermostat refuse une consigne plus haute. 35 °C par défaut."
+  },
+  "step_temperature": {
+   "label": "Pas de réglage",
+   "info": "Ce que change un appui sur +/−. 0,1 °C par défaut."
+  },
+  "underlying_entity_ids": {
+   "label": "Équipements pilotés",
+   "info": "over_switch : switch, input_boolean, select ou climate. over_valve : entités number d'ouverture de vanne. over_climate : entités climate."
+  },
+  "ac_mode": {
+   "label": "Climatisation",
+   "hint": "L'appareil peut refroidir.",
+   "info": "over_switch / over_valve : seul le froid est proposé. over_climate : chaud et froid si l'appareil les gère. Ajoute les presets de climatisation."
+  },
+  "inverse_switch_command": {
+   "label": "Commande inversée",
+   "hint": "Pour les modules fil pilote avec diode.",
+   "info": "Allumé signifie radiateur éteint et inversement. Nécessaire pour certains montages fil pilote avec diode."
+  },
+  "heater_keep_alive": {
+   "label": "Intervalle de maintien (s)",
+   "hint": "Renvoie l'état régulièrement. Vide : désactivé.",
+   "info": "Certains appareils s'éteignent seuls s'ils ne reçoivent rien. VT répète alors la commande marche/arrêt à cet intervalle."
+  },
+  "on_command_text": {
+   "label": "Commandes marche/arrêt personnalisées",
+   "hint": "Nécessaires si un équipement n'est pas un simple switch.",
+   "info": "Format commande[/attribut[:valeur]], une par équipement, dans le même ordre. Exemples : select_option/option:comfort, set_hvac_mode/hvac_mode:heat. Les switch utilisent turn_on / turn_off."
+  },
+  "used_by_controls_central_boiler": {
+   "label": "Utilise la chaudière centrale",
+   "hint": "Allume la chaudière quand cette pièce demande de la chaleur.",
+   "info": "Compte les équipements de ce thermostat pour la chaudière centrale (réglée dans la configuration centrale). Les pièces chauffées à l'électricité restent en général désactivées."
+  },
+  "auto_fan_mode": {
+   "label": "Ventilation renforcée loin de la consigne",
+   "info": "Fait tourner le ventilateur à ce niveau tant que la pièce est loin de la consigne, pour répartir la chaleur plus vite."
+  },
+  "auto_regulation_dtemp": {
+   "label": "Plus petit changement envoyé (°)",
+   "hint": "Les changements plus petits ne sont pas envoyés.",
+   "info": "Limite les commandes (bruit, piles). Avec une vanne Sonoff TRVZB, gardez au moins 3 %, sinon elle peut perdre son calibrage.",
+   "diagram": "send_threshold"
+  },
+  "auto_regulation_periode_min": {
+   "label": "Délai minimum entre deux envois (min)",
+   "info": "Une nouvelle valeur est envoyée au plus à cette fréquence.",
+   "diagram": "send_threshold"
+  },
+  "opening_threshold_degree": {
+   "label": "Considérée fermée en dessous de (%)",
+   "hint": "Une ouverture demandée plus petite ferme la vanne.",
+   "info": "En dessous, la demande compte comme « pas de chauffe » : la vanne va à sa position la plus fermée et la pièce ne compte pas comme chauffante (y compris pour la chaudière).",
+   "diagram": "valve_curve"
+  },
+  "min_opening_degrees": {
+   "label": "Ouverture minimale en chauffe (%)",
+   "hint": "Une valeur par vanne, séparées par des virgules.",
+   "info": "Dès qu'il faut chauffer, la vanne s'ouvre au moins à ce niveau. Utile pour les vannes avec une zone morte. Exemple : 15 ou « 15, 20 ».",
+   "diagram": "valve_curve"
+  },
+  "max_opening_degrees": {
+   "label": "Ouverture maximale (%)",
+   "hint": "Une valeur par vanne, séparées par des virgules.",
+   "info": "La vanne ne s'ouvre jamais plus. Limite le débit, par exemple pour équilibrer les radiateurs. Doit dépasser l'ouverture minimale.",
+   "diagram": "valve_curve"
+  },
+  "max_closing_degree": {
+   "label": "Fermeture maximale (%)",
+   "hint": "100 = entièrement fermée.",
+   "info": "En dessous de 100, un peu d'eau circule toujours, par exemple 90 garde 10 % d'ouverture (plus silencieux, protège le circulateur).",
+   "diagram": "valve_curve"
+  },
+  "auto_regulation_mode": {
+   "label": "Force de la correction",
+   "hint": "Commencez par Légère, augmentez seulement si la consigne n'est pas atteinte.",
+   "info": "L'appareil régule sur son propre capteur, souvent près de la source de chaleur. VT décale la consigne envoyée pour que le capteur de la pièce atteigne votre température. Légère : jusqu'à 1,5 °, Moyenne : 2 °, Forte : 3 °. Expert utilise configuration.yaml. « Contrôle direct de la vanne » règle l'ouverture lui-même. Plus de correction = plus d'énergie et d'usure.",
+   "diagram": "correction"
+  },
+  "auto_regulation_use_device_temp": {
+   "label": "Compenser le capteur de l'appareil",
+   "hint": "Rarement utile. Essayez d'abord la correction.",
+   "info": "Ajoute (température de l'appareil − température de la pièce) à la consigne. Exemple : pièce 18 °, appareil 22 ° : VT envoie 4 ° de plus pour que l'appareil chauffe vraiment."
+  },
+  "opening_degree_entity_ids": {
+   "label": "Entités d'ouverture de vanne",
+   "hint": "Une par équipement, dans le même ordre.",
+   "info": "Les entités number qui règlent l'ouverture de chaque vanne."
+  },
+  "closing_degree_entity_ids": {
+   "label": "Entités de fermeture de vanne",
+   "hint": "Facultatif. Toutes ou aucune.",
+   "info": "Si la vanne a aussi une entité de fermeture, VT la règle à 100 − ouverture."
+  },
+  "sync_entity_ids": {
+   "label": "Entités à synchroniser",
+   "hint": "Une par équipement, dans le même ordre.",
+   "info": "L'entité de calibrage de l'appareil (mode décalage) ou son entrée de température externe (mode direct). Certains appareils demandent un réglage en plus, par ex. Sonoff TRVZB : sensor_select = external."
+  },
+  "sync_with_calibration": {
+   "label": "Utiliser le décalage de calibrage",
+   "hint": "Oui : ajuste le décalage de l'appareil. Non : envoie la température de la pièce.",
+   "info": "Le mode décalage marche avec la plupart des vannes (local_temperature_calibration). Le mode direct demande un appareil qui accepte une température externe."
+  },
+  "proportional_function": {
+   "label": "Algorithme",
+   "hint": "TPI est intégré ; des plugins comme SmartPI en ajoutent d'autres.",
+   "info": "SmartPI apprend la pièce ; c'est l'algorithme recommandé par l'auteur de VT."
+  },
+  "cycle_min": {
+   "label": "Durée du cycle (min)",
+   "hint": "5 minutes conviennent à la plupart des pièces ; plus pour un chauffage lent.",
+   "info": "VT recalcule une fois par cycle et, pour un interrupteur, allume le radiateur une partie du cycle. Un système lent (plancher, accumulation) veut des cycles plus longs ; trop court, le radiateur ne chauffe jamais vraiment.",
+   "diagram": "tpi_cycle"
+  },
+  "tpi_coef_int": {
+   "label": "Facteur écart pièce (coef_int)",
+   "hint": "Plus haut : rattrape plus vite. Baissez s'il dépasse.",
+   "info": "Part de chauffe = coef_int × (consigne − pièce) + coef_ext × (consigne − extérieur). Consigne atteinte trop lentement : augmentez. Oscillations : baissez. 0,6 par défaut.",
+   "diagram": "tpi_formula"
+  },
+  "tpi_coef_ext": {
+   "label": "Facteur extérieur (coef_ext)",
+   "hint": "Augmentez si la pièce se stabilise sous la consigne.",
+   "info": "Compense les pertes vers l'extérieur. Stabilisée en dessous : augmentez. Au-dessus : baissez. 0,01 par défaut.",
+   "diagram": "tpi_formula"
+  },
+  "minimal_activation_delay": {
+   "label": "Durée de marche minimale (s)",
+   "hint": "Les impulsions plus courtes sont ignorées.",
+   "info": "Évite des impulsions trop courtes pour être utiles. 10 s par défaut.",
+   "diagram": "tpi_cycle"
+  },
+  "minimal_deactivation_delay": {
+   "label": "Durée d'arrêt minimale (s)",
+   "hint": "Les pauses plus courtes sont ignorées (reste allumé).",
+   "info": "Évite de couper quelques secondes seulement. 0 par défaut.",
+   "diagram": "tpi_cycle"
+  },
+  "tpi_threshold_high": {
+   "label": "Arrêt au-dessus de consigne + (°)",
+   "hint": "0 = désactivé. Il faut aussi la valeur de reprise.",
+   "info": "Si la pièce dépasse la consigne de cette valeur, la chauffe s'arrête complètement jusqu'à redescendre sous consigne + reprise. Les deux valeurs sont nécessaires.",
+   "diagram": "tpi_thresholds"
+  },
+  "tpi_threshold_low": {
+   "label": "Reprise sous consigne + (°)",
+   "hint": "Doit être plus petite que la valeur d'arrêt.",
+   "info": "Voir « Arrêt au-dessus de consigne ».",
+   "diagram": "tpi_thresholds"
+  },
+  "auto_tpi_learning_type": {
+   "label": "Type d'apprentissage",
+   "hint": "Découverte pour une nouvelle installation, Affinage pour peaufiner.",
+   "info": "Une session dure environ 48 h et se lance à la main (service ou carte Auto-TPI). Découverte : rapide, depuis zéro. Affinage : lent, petites corrections."
+  },
+  "auto_tpi_heating_rate": {
+   "label": "Vitesse de chauffe (°/h)",
+   "hint": "0 = mesurée automatiquement.",
+   "info": "La vitesse à laquelle le radiateur chauffe la pièce à pleine puissance."
+  },
+  "heater_heating_time": {
+   "label": "Temps de montée (min)",
+   "hint": "Temps pour atteindre la pleine puissance, ex. 5 pour un radiateur électrique."
+  },
+  "heater_cooling_time": {
+   "label": "Temps de refroidissement (min)",
+   "hint": "Temps pour refroidir après l'arrêt, ex. 7 pour un radiateur électrique."
+  },
+  "auto_tpi_aggressiveness": {
+   "label": "Agressivité",
+   "hint": "Baissez (ex. 0,8) en cas de dépassements répétés.",
+   "info": "Réduit les coefficients appris. 1,0 = tels qu'appris."
+  },
+  "auto_tpi_continuous_kext": {
+   "label": "Apprentissage continu du facteur extérieur",
+   "hint": "Ajustement lent en arrière-plan entre les sessions."
+  },
+  "auto_tpi_enable_advanced_settings": {
+   "label": "Afficher les paramètres d'apprentissage"
+  },
+  "auto_tpi_avg_initial_weight": {
+   "label": "Poids des anciennes valeurs",
+   "hint": "1 = remplace vite, 50 = change lentement."
+  },
+  "auto_tpi_ema_alpha": {
+   "label": "Alpha",
+   "hint": "Plus haut : réagit plus vite aux derniers cycles."
+  },
+  "auto_tpi_ema_decay_rate": {
+   "label": "Taux de décroissance",
+   "hint": "Ralentit l'apprentissage avec le temps."
+  },
+  "auto_tpi_continuous_kext_alpha": {
+   "label": "Vitesse de l'apprentissage continu",
+   "hint": "0,04 par défaut ≈ quelques jours pour s'adapter."
+  },
+  "use_presets_central_config": {
+   "label": "Utiliser les températures de la configuration centrale",
+   "hint": "Non : cette pièce a ses propres températures Éco/Confort/Boost.",
+   "info": "Les températures des presets sont des entités number du thermostat, ou de la configuration centrale quand ceci est activé."
+  },
+  "use_central_mode": {
+   "label": "Suivre le mode central",
+   "hint": "Un seul réglage peut arrêter toutes les pièces ou les mettre hors-gel.",
+   "info": "La configuration centrale a un select (Auto, Arrêt, Chauffage seul, Froid seul, Hors-gel) qui pilote chaque thermostat où ceci est activé."
+  },
+  "window_sensor_entity_id": {
+   "label": "Capteur d'ouverture",
+   "hint": "Un binary_sensor ou un groupe.",
+   "info": "Pour plusieurs fenêtres, créez un groupe de binary_sensor."
+  },
+  "window_delay": {
+   "label": "Attente avant de réagir (s)",
+   "hint": "Une aération courte n'arrête pas le chauffage.",
+   "info": "La fenêtre doit rester ouverte ce temps avant l'action.",
+   "diagram": "window_delay"
+  },
+  "window_off_delay": {
+   "label": "Attente après fermeture (s)",
+   "hint": "Vide : même valeur que ci-dessus.",
+   "info": "La fenêtre doit rester fermée ce temps avant la reprise.",
+   "diagram": "window_delay"
+  },
+  "window_auto_open_threshold": {
+   "label": "Détecter une baisse plus rapide que (°/h)",
+   "hint": "Plus bas détecte plus tôt, avec plus de fausses alertes. Essayez 3.",
+   "info": "VT surveille la pente de la température. Une chute brutale au-delà de ce rythme compte comme une fenêtre ouverte. Pas pour les couloirs ou les pièces aux variations normales fortes.",
+   "diagram": "window_slope"
+  },
+  "window_auto_close_threshold": {
+   "label": "Considérée fermée au-dessus de (°/h)",
+   "hint": "En général 0 : la température ne baisse plus.",
+   "diagram": "window_slope"
+  },
+  "window_auto_max_duration": {
+   "label": "Abandonner après (min)",
+   "hint": "Le chauffage reprend même si ça refroidit encore. Essayez 30 à 60.",
+   "diagram": "window_slope"
+  },
+  "window_action": {
+   "label": "Fenêtre ouverte",
+   "hint": "Arrêt, ventilation seule, hors-gel ou éco.",
+   "info": "Hors-gel et Éco changent la consigne sans changer le preset : le preset affiché peut différer de la consigne."
+  },
+  "motion_sensor_entity_id": {
+   "label": "Capteur de mouvement",
+   "info": "À l'échelle de la pièce. Le thermostat ne le suit qu'en preset « Activité »."
+  },
+  "motion_preset": {
+   "label": "Preset avec mouvement",
+   "diagram": "motion"
+  },
+  "no_motion_preset": {
+   "label": "Preset sans mouvement",
+   "diagram": "motion"
+  },
+  "motion_delay": {
+   "label": "Le mouvement doit durer (s)",
+   "hint": "Un simple passage ne compte pas.",
+   "diagram": "motion"
+  },
+  "motion_off_delay": {
+   "label": "Pièce vide après (s)",
+   "diagram": "motion"
+  },
+  "presence_sensor_entity_id": {
+   "label": "Capteur de présence au domicile",
+   "hint": "on/home = quelqu'un, off/not_home = absent.",
+   "info": "Une entité person ou un binary_sensor (un groupe de binary_sensor fonctionne). Un groupe de personnes ne fonctionne pas : la documentation de VT recommande un template. En absence, les températures « absent » des presets s'appliquent."
+  },
+  "device_power": {
+   "label": "Puissance de l'équipement",
+   "hint": "Total de tous les équipements ; même unité partout.",
+   "info": "Utilisée pour les capteurs d'énergie, le délestage et la chaudière centrale."
+  },
+  "power_unit": {
+   "label": "Unité"
+  },
+  "power_sensor_entity_id": {
+   "label": "Capteur de consommation du logement",
+   "hint": "Puissance totale consommée en ce moment."
+  },
+  "max_power_sensor_entity_id": {
+   "label": "Capteur de puissance maximale autorisée",
+   "hint": "Gardez une marge sous votre abonnement.",
+   "info": "Ce n'est pas une sécurité : un dépassement reste possible entre deux mesures."
+  },
+  "power_temp": {
+   "label": "Température pendant le délestage"
+  },
+  "safety_delay_min": {
+   "label": "Capteur muet depuis (min)",
+   "hint": "Puis puissance fixe de sécurité. Capteurs sur pile : 120 à 240.",
+   "info": "Sans température pendant ce temps, VT ne fait plus confiance au capteur. Renseignez « dernier contact » dans Pièce pour éviter les fausses alertes.",
+   "diagram": "safety"
+  },
+  "safety_default_on_percent": {
+   "label": "Puissance fixe en capteur perdu",
+   "hint": "0,1 = 10 %. 0 risque le gel.",
+   "diagram": "safety"
+  },
+  "safety_min_on_percent": {
+   "label": "Seulement si la chauffe dépasse",
+   "hint": "0,5 = 50 %. En dessous, la perte du capteur est ignorée.",
+   "info": "Un radiateur qui chauffe peu ne peut pas surchauffer la pièce : inutile de réagir.",
+   "diagram": "safety"
+  },
+  "manual_override_duration_min": {
+   "label": "Retour au preset après un changement manuel (min)",
+   "hint": "0 = garder la température manuelle.",
+   "diagram": "override"
+  },
+  "repair_incorrect_state": {
+   "label": "Renvoyer les commandes ignorées",
+   "hint": "Pour les relais ou vannes qui ratent parfois une commande.",
+   "info": "5 essais de suite au maximum ; des réparations fréquentes signalent un problème matériel ou réseau."
+  },
+  "heating_failure_threshold": {
+   "label": "Chauffe forte = au moins",
+   "hint": "0,9 = 90 %.",
+   "diagram": "failure"
+  },
+  "cooling_failure_threshold": {
+   "label": "Chauffe coupée = au plus",
+   "hint": "0 = 0 %.",
+   "diagram": "failure"
+  },
+  "heating_failure_detection_delay": {
+   "label": "Alerter après (min)",
+   "hint": "Augmentez pour un plancher chauffant ou une grande pièce.",
+   "diagram": "failure"
+  },
+  "temperature_change_tolerance": {
+   "label": "Ignorer les variations sous (°)",
+   "hint": "Filtre le bruit du capteur.",
+   "diagram": "failure"
+  },
+  "failure_detection_enable_template": {
+   "label": "Détecter seulement si (template)",
+   "hint": "Facultatif."
+  },
+  "auto_start_stop_level": {
+   "label": "Vitesse de réaction",
+   "hint": "Rapide arrête et redémarre plus souvent.",
+   "info": "Très lent ≈ 60 min entre arrêt et redémarrage, lent ≈ 30, moyen ≈ 15, rapide ≈ 7. Ne redémarre que les appareils qu'il a arrêtés lui-même."
+  },
+  "lock_users": {
+   "label": "Bloquer les changements depuis l'interface",
+   "info": "Fenêtres, sécurité et délestage continuent de fonctionner."
+  },
+  "lock_automations": {
+   "label": "Bloquer les automatisations et programmateurs"
+  },
+  "lock_code": {
+   "label": "Code PIN",
+   "hint": "4 chiffres. Facultatif."
+  },
+  "auto_relock_sec": {
+   "label": "Reverrouiller après (s)",
+   "hint": "0 = reste déverrouillé."
+  },
+  "auto_regulation_dtemp@thermostat_over_valve": {
+   "label": "Plus petit changement d'ouverture envoyé (%)",
+   "hint": "Les changements plus petits ne sont pas envoyés à la vanne.",
+   "info": "Limite les mouvements de la vanne (bruit, piles).",
+   "diagram": "send_threshold"
+  },
+  "auto_regulation_periode_min@thermostat_over_valve": {
+   "label": "Délai minimum entre deux ouvertures (min)",
+   "info": "La vanne reçoit une nouvelle ouverture au plus à cette fréquence.",
+   "diagram": "send_threshold"
+  },
+  "underlying_entity_ids@thermostat_over_switch": {
+   "label": "Équipements pilotés",
+   "hint": "Plusieurs interrupteurs démarrent en décalé pour lisser la puissance.",
+   "info": "over_switch : switch, input_boolean, select ou climate. over_valve : entités number d'ouverture de vanne. over_climate : entités climate. Avec plusieurs interrupteurs, chacun garde tout son temps de chauffe ; VT décale seulement leurs départs pour qu'ils soient moins souvent allumés ensemble. À forte demande, ils se chevauchent.",
+   "diagram": "stagger"
+  }
+ },
+ "diagrams": {
+  "tpi_cycle": {
+   "title": "Cycle de chauffe",
+   "caption": "Allumé pour la part calculée de chaque cycle."
+  },
+  "tpi_formula": {
+   "title": "Combien chauffer",
+   "caption": "Écart pièce × coef_int + écart extérieur × coef_ext."
+  },
+  "tpi_thresholds": {
+   "title": "Bande d'arrêt et de reprise",
+   "caption": "Arrêt au-dessus de consigne + arrêt, reprise sous consigne + reprise."
+  },
+  "valve_curve": {
+   "title": "Ouverture demandée et envoyée",
+   "caption": "Fermée sous le seuil, puis au moins l'ouverture minimale, au plus la maximale."
+  },
+  "send_threshold": {
+   "title": "Seuls les vrais changements sont envoyés",
+   "caption": "La valeur envoyée ne bouge que si l'écart dépasse le seuil."
+  },
+  "window_delay": {
+   "title": "Chronologie fenêtre",
+   "caption": "Une ouverture courte ne fait rien ; une longue déclenche l'action après l'attente."
+  },
+  "window_slope": {
+   "title": "Détection par chute de température",
+   "caption": "Une chute brutale marque « ouverte » jusqu'à ce que la pente remonte."
+  },
+  "motion": {
+   "title": "Chronologie mouvement",
+   "caption": "Un passage ne fait rien ; rester active le preset mouvement."
+  },
+  "safety": {
+   "title": "Capteur perdu",
+   "caption": "Silence plus long que le délai : puissance fixe jusqu'au retour d'une mesure."
+  },
+  "override": {
+   "title": "Changement manuel",
+   "caption": "Retour à la consigne du preset après la durée."
+  },
+  "failure": {
+   "title": "Panne de chauffe",
+   "caption": "Chauffe forte plus longtemps que le délai sans hausse de température : alerte."
+  },
+  "correction": {
+   "title": "Correction de consigne",
+   "caption": "La consigne envoyée monte tant que la pièce est sous la consigne."
+  },
+  "stagger": {
+   "title": "Plusieurs radiateurs dans une pièce",
+   "caption": "Même part de cycle pour chacun, départs décalés."
+  }
+ },
+ "types": {
+  "thermostat_over_switch": {
+   "title": "Allumer et éteindre un radiateur",
+   "body": "Versatile Thermostat allume l'appareil une partie de chaque cycle, plus longtemps quand la pièce est froide.",
+   "examples": "Radiateurs électriques, câbles chauffants, relais, prises connectées, modules fil pilote."
+  },
+  "thermostat_over_valve": {
+   "title": "Régler l'ouverture d'une vanne",
+   "body": "Versatile Thermostat envoie un pourcentage d'ouverture à la vanne et l'ajuste pendant que la pièce chauffe.",
+   "examples": "Vannes de radiateur qui exposent leur ouverture en number (certaines vannes Zigbee)."
+  },
+  "thermostat_over_climate": {
+   "title": "Piloter un appareil qui a son propre thermostat",
+   "body": "L'appareil régule lui-même ; Versatile Thermostat règle sa consigne et la corrige avec votre capteur de pièce.",
+   "examples": "Têtes thermostatiques, climatiseurs, pompes à chaleur."
+  },
+  "thermostat_central_config": {
+   "title": "Configuration centrale",
+   "body": "Réglages partagés (capteur extérieur, presets, fenêtres, sécurité) que chaque VTherm peut reprendre.",
+   "examples": "À créer en premier si vous avez plusieurs pièces."
+  }
+ },
+ "window": {
+  "question": "Comment cette pièce repère-t-elle une fenêtre ouverte ?",
+  "off": "Pas de détection",
+  "sensor": "Capteur d'ouverture",
+  "drop": "Chute de température"
+ },
+ "presets": {
+  "preset": "Preset",
+  "normal": "Normal",
+  "away": "Absent",
+  "cool": "Climatisation",
+  "cool_away": "Climatisation, absent",
+  "frost": "Hors-gel",
+  "eco": "Éco",
+  "comfort": "Confort",
+  "boost": "Boost",
+  "from_central": "Ces températures viennent de la configuration centrale et s'appliquent à tous les thermostats qui l'utilisent.",
+  "saved_now": "Les changements ici s'appliquent immédiatement.",
+  "pending": "Enregistrez d'abord : le thermostat crée ses propres températures quand il n'utilise plus celles de la configuration centrale."
+ },
+ "ui": {
+  "panel_title": "Versatile Thermostat",
+  "save": "Enregistrer",
+  "create": "Créer",
+  "unsaved": "Modifications non enregistrées",
+  "required_empty": "{n} obligatoire(s) vide(s)",
+  "saved": "Enregistré. Le thermostat a été rechargé.",
+  "not_saved_incomplete": "Non enregistré : des réglages obligatoires sont encore vides. Ils sont signalés dans l'index.",
+  "not_saved_rejected": "Non enregistré : Versatile Thermostat a refusé un réglage. Il est signalé ci-dessous.",
+  "advanced": "Réglages avancés",
+  "from_central": "Depuis la configuration centrale",
+  "central_nothing": "Rien n'y est réglé : les valeurs par défaut de Versatile Thermostat s'appliquent.",
+  "edit_central": "Modifier la configuration centrale",
+  "override": "Remplacer la configuration centrale",
+  "state_off": "Désactivé",
+  "state_error": "Erreur",
+  "state_empty": "{n} vide(s)",
+  "state_central": "Centrale",
+  "turn_on": "Activer",
+  "turn_off": "Désactiver",
+  "new": "Nouveau",
+  "new_vtherm": "Nouveau VTherm",
+  "choose_type": "Choisir un type",
+  "shared_defaults": "Réglages partagés",
+  "no_climate": "Pas d'entité climate",
+  "not_loaded": "Non chargé",
+  "thermostats": "Thermostats",
+  "chooser_question": "Que pilote ce thermostat ?",
+  "chooser_no_central": "Pas encore de configuration centrale. Avec plusieurs pièces, créez-la d'abord : chaque thermostat pourra reprendre ses réglages.",
+  "empty": "Aucun Versatile Thermostat pour l'instant. Utilisez « Nouveau » ci-dessus pour créer le premier.",
+  "discard": "Abandonner les modifications non enregistrées de ce thermostat ?",
+  "sections": "Sections",
+  "more_info": "Plus d'informations"
+ }
+}
