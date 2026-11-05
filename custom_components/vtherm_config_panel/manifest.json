@@ -1,0 +1,14 @@
+{
+  "domain": "vtherm_config_panel",
+  "name": "VTherm Config Panel",
+  "codeowners": ["@Liquidmasl"],
+  "config_flow": true,
+  "dependencies": ["http", "frontend", "panel_custom", "websocket_api", "versatile_thermostat"],
+  "documentation": "https://github.com/Liquidmasl/vtherm_config_panel",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/Liquidmasl/vtherm_config_panel/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.1.0"
+}

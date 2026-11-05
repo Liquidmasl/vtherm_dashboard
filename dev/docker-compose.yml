@@ -1,0 +1,15 @@
+# Throwaway Home Assistant for developing the panel.
+# VT is mounted from a sibling checkout (override with VT_REPO), the plugin from this repo.
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:${HA_VERSION:-2026.8.2}
+    container_name: vtherm-config-panel-ha
+    ports:
+      - "${HA_PORT:-8124}:8123"
+    environment:
+      TZ: Europe/Vienna
+    volumes:
+      - ./config:/config
+      - ${VT_REPO:-../../versatile_thermostat}/custom_components/versatile_thermostat:/config/custom_components/versatile_thermostat:ro
+      - ../custom_components/vtherm_config_panel:/config/custom_components/vtherm_config_panel:ro
+    restart: unless-stopped

@@ -1,0 +1,8 @@
+# Runtime state of the dev HA instance; only configuration.yaml is tracked
+dev/config/*
+!dev/config/configuration.yaml
+dev/.token
+node_modules/
+__pycache__/
+*.pyc
+dev/.llat
