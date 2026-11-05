@@ -68,7 +68,6 @@
   "motion_detect": "Sensor",
   "motion_behaviour": "What happens",
   "shedding": "Load shedding",
-  "boiler_use": "Heat source",
   "failure": "Heating failure detection"
  },
  "fields": {
@@ -111,7 +110,7 @@
   },
   "underlying_entity_ids": {
    "label": "Devices to control",
-   "info": "over_switch: switches, input_booleans, selects or climates. over_valve: number entities for the valve opening. over_climate: climate entities."
+   "info": "**over_switch**: switch, input_boolean, select or climate entities.\n**over_valve**: number entities that set the valve opening.\n**over_climate**: climate entities."
   },
   "ac_mode": {
    "label": "Air conditioning",
@@ -480,7 +479,7 @@
   "underlying_entity_ids@thermostat_over_switch": {
    "label": "Devices to control",
    "hint": "Several switches get shifted start times to smooth the power draw.",
-   "info": "over_switch: switches, input_booleans, selects or climates. over_valve: number entities for the valve opening. over_climate: climate entities. With several switches each one still gets its full on-time; VT only shifts their start so fewer run at once (smoother power draw). At high demand they overlap.",
+   "info": "**over_switch**: switch, input_boolean, select or climate entities.\n**over_valve**: number entities that set the valve opening.\n**over_climate**: climate entities.\n\nWith several switches each one still gets its full on-time; VT only shifts their start so fewer run at once (smoother power draw). At high demand they overlap.",
    "diagram": "stagger"
   }
  },

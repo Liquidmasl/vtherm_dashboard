@@ -21,6 +21,9 @@ export function selectorFor(schema: HaFormField): Record<string, any> {
   }
 }
 
+/** The (i) texts' only markup: line breaks (kept by white-space: pre-line) and **bold**. */
+const richText = (text: string) => text.split(/\*\*(.+?)\*\*/g).map((part, i) => (i % 2 ? html`<b>${part}</b>` : part));
+
 const kind = (schema: HaFormField) => Object.keys(selectorFor(schema))[0];
 const conf = (schema: HaFormField) => (Object.values(selectorFor(schema))[0] ?? {}) as Record<string, any>;
 
@@ -76,7 +79,7 @@ export class VtField extends LitElement {
               <svg viewBox=${DIAGRAM_VIEWBOX} width="100%" role="img" aria-label=${dt?.caption ?? ""}>${body}</svg>
             </span>`
           : nothing}
-        ${this.info ? html`<span class="text">${this.info}</span>` : nothing}
+        ${this.info ? html`<span class="text">${richText(this.info)}</span>` : nothing}
       </span>
     </span>`;
   }

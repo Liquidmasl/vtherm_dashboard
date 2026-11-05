@@ -55,6 +55,7 @@ CARDS: list[dict[str, Any]] = [
                 _f(
                     ("underlying_entity_ids", E),
                     ("ac_mode", C),
+                    ("used_by_controls_central_boiler", C),
                     ("inverse_switch_command", C),
                     ("heater_keep_alive", A),
                     ("on_command_text", A),
@@ -64,7 +65,6 @@ CARDS: list[dict[str, Any]] = [
                     ("auto_fan_mode", A),
                 ),
             ),
-            _group("boiler_use", _f(("used_by_controls_central_boiler", E))),
             # On over_valve the valves are the devices, so their limits live here.
             _group(
                 "valve_limits",

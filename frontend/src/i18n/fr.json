@@ -68,7 +68,6 @@
   "motion_detect": "Capteur",
   "motion_behaviour": "Ce qui se passe",
   "shedding": "Délestage",
-  "boiler_use": "Source de chaleur",
   "failure": "Détection de panne de chauffe"
  },
  "fields": {
@@ -111,7 +110,7 @@
   },
   "underlying_entity_ids": {
    "label": "Équipements pilotés",
-   "info": "over_switch : switch, input_boolean, select ou climate. over_valve : entités number d'ouverture de vanne. over_climate : entités climate."
+   "info": "**over_switch** : entités switch, input_boolean, select ou climate.\n**over_valve** : entités number qui règlent l'ouverture de la vanne.\n**over_climate** : entités climate."
   },
   "ac_mode": {
    "label": "Climatisation",
@@ -480,7 +479,7 @@
   "underlying_entity_ids@thermostat_over_switch": {
    "label": "Équipements pilotés",
    "hint": "Plusieurs interrupteurs démarrent en décalé pour lisser la puissance.",
-   "info": "over_switch : switch, input_boolean, select ou climate. over_valve : entités number d'ouverture de vanne. over_climate : entités climate. Avec plusieurs interrupteurs, chacun garde tout son temps de chauffe ; VT décale seulement leurs départs pour qu'ils soient moins souvent allumés ensemble. À forte demande, ils se chevauchent.",
+   "info": "**over_switch** : entités switch, input_boolean, select ou climate.\n**over_valve** : entités number qui règlent l'ouverture de la vanne.\n**over_climate** : entités climate.\n\nAvec plusieurs interrupteurs, chacun garde tout son temps de chauffe ; VT décale seulement leurs départs pour qu'ils soient moins souvent allumés ensemble. À forte demande, ils se chevauchent.",
    "diagram": "stagger"
   }
  },
