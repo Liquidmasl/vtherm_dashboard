@@ -23,10 +23,10 @@ export interface FieldDesc {
 export type Level = "essential" | "common" | "advanced";
 
 export interface GroupControl {
-  type: "feature" | "central" | "method";
-  key?: string;
+  type: "feature" | "central";
+  key: string;
+  /** A feature group that can also take its settings from the central configuration. */
   central?: string;
-  options?: Record<string, string[]>;
 }
 
 export interface LayoutGroup {
@@ -40,7 +40,8 @@ export interface LayoutGroup {
 export interface LayoutCard {
   id: string;
   control?: GroupControl;
-  central?: string;
+  /** A choice between alternative sets of fields (window: sensor or temperature drop). */
+  method?: { options: Record<string, string[]> };
   groups: LayoutGroup[];
 }
 
@@ -50,7 +51,7 @@ export interface Layout {
   central_exists: boolean;
   central_entry_id: string | null;
   placeholders: Record<string, string>;
-  layout: { cards: LayoutCard[]; control_keys: string[] };
+  layout: { cards: LayoutCard[]; control_keys: string[]; derived_flags: Record<string, string> };
 }
 
 export interface EntrySummary {

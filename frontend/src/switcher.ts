@@ -1,10 +1,12 @@
-import { LitElement, html, css, nothing } from "lit";
-import { customElement, property, state } from "lit/decorators.js";
+import { LitElement, html, css } from "lit";
+import { customElement, property } from "lit/decorators.js";
 import type { EntrySummary } from "./api";
 import { thermostatTypeLabel } from "./localize";
 
 export const CENTRAL = "thermostat_central_config";
-const TYPE_ICONS: Record<string, string> = {
+/** URL value of ?new= while the type is not chosen yet. */
+export const CHOOSE_TYPE = "choose";
+export const TYPE_ICONS: Record<string, string> = {
   thermostat_central_config: "mdi:cog-transfer",
   thermostat_over_switch: "mdi:toggle-switch-outline",
   thermostat_over_climate: "mdi:thermostat",
@@ -22,42 +24,29 @@ const ACTION_COLOR: Record<string, string> = {
 export class VThermSwitcher extends LitElement {
   @property({ attribute: false }) hass: any;
   @property({ attribute: false }) entries: EntrySummary[] = [];
-  @property({ attribute: false }) types: string[] = [];
   @property() selected?: string;
   @property() newType?: string;
-  @state() private picking = false;
 
   private select(detail: { entryId?: string; newType?: string }) {
-    this.picking = false;
     this.dispatchEvent(new CustomEvent("vtherm-open", { detail, bubbles: true, composed: true }));
   }
 
   render() {
-    const hasCentral = this.entries.some((e) => e.thermostat_type === CENTRAL);
-    const creatable = this.types.filter((t) => t !== CENTRAL || !hasCentral);
     return html`
       <div class="row" role="tablist" aria-label="Thermostats">
         ${this.entries.map((e) => this.tile(e))}
         ${this.newType
           ? html`<div class="tile selected new" role="tab" aria-selected="true">
-              <ha-icon icon=${TYPE_ICONS[this.newType]}></ha-icon>
-              <div class="main"><div class="name">New VTherm</div><div class="sub">${thermostatTypeLabel(this.hass, this.newType)}</div></div>
+              <ha-icon icon=${TYPE_ICONS[this.newType] ?? "mdi:plus"}></ha-icon>
+              <div class="main">
+                <div class="name">New VTherm</div>
+                <div class="sub">${TYPE_ICONS[this.newType] ? thermostatTypeLabel(this.hass, this.newType) : "Choose a type"}</div>
+              </div>
             </div>`
-          : nothing}
-        <button class="tile add" @click=${() => (this.picking = !this.picking)} aria-expanded=${this.picking}>
-          <ha-icon icon="mdi:plus"></ha-icon><span>New</span>
-        </button>
+          : html`<button class="tile add" @click=${() => this.select({ newType: CHOOSE_TYPE })}>
+              <ha-icon icon="mdi:plus"></ha-icon><span>New</span>
+            </button>`}
       </div>
-      ${this.picking
-        ? html`<div class="picker">
-            <span class="hint">Create a</span>
-            ${creatable.map(
-              (t) => html`<button @click=${() => this.select({ newType: t })}>
-                <ha-icon icon=${TYPE_ICONS[t]}></ha-icon>${thermostatTypeLabel(this.hass, t)}
-              </button>`,
-            )}
-          </div>`
-        : nothing}
     `;
   }
 
@@ -126,12 +115,5 @@ export class VThermSwitcher extends LitElement {
     .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--action, var(--secondary-text-color)); flex-shrink: 0; }
     .tile.add { min-width: 0; color: var(--primary-color); gap: 6px; font-size: 14px; }
     .tile.new { border-style: dashed; cursor: default; }
-    .picker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
-    .picker .hint { color: var(--secondary-text-color); font-size: 14px; }
-    .picker button {
-      all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 16px;
-      border: 1px solid var(--divider-color); font-size: 14px; --mdc-icon-size: 18px;
-    }
-    .picker button:hover, .picker button:focus-visible { border-color: var(--primary-color); color: var(--primary-color); }
   `;
 }

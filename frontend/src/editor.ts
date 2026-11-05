@@ -82,6 +82,9 @@ export class VThermEditor extends LitElement {
   /** Apply changes to the draft (undefined removes a key) and re-describe the page. */
   private async change(changes: Infos) {
     const value = { ...this.data };
+    for (const [field, flag] of Object.entries(this.layout?.layout.derived_flags ?? {})) {
+      if (field in changes) changes = { ...changes, [flag]: !["", null, undefined].includes(changes[field]) };
+    }
     for (const [k, v] of Object.entries(changes)) {
       if (v === undefined) delete value[k];
       else value[k] = v;
@@ -193,7 +196,8 @@ export class VThermEditor extends LitElement {
         if (!card.featureOn) status = html`<span class="state">Off</span>`;
         else if (this.cardHasError(card, fieldErrors)) status = html`<span class="state err">Error</span>`;
         else if (missing[card.id]) status = html`<span class="state warn">${missing[card.id].length} empty</span>`;
-        else if (card.usesCentral) status = html`<span class="state">Central</span>`;
+        else if (card.groups.every((g) => g.centralKey && g.usesCentral))
+          status = html`<span class="state">Central</span>`;
         return html`<button class=${card.featureOn ? "" : "off"} @click=${() => this.scrollToCard(card.id)}>
           <ha-icon icon=${text.icon}></ha-icon><span class="label">${text.title}</span>${status}
         </button>`;
@@ -209,8 +213,6 @@ export class VThermEditor extends LitElement {
   private renderCard(card: CardView, fieldErrors: Record<string, string>) {
     const text = CARD_TEXT[card.id] ?? CARD_TEXT.other;
     const baseErrors = [...card.steps].map((s) => this.errors[s]?.base).filter(Boolean) as string[];
-    // A card-wide "central | own" switch gets one inherited block for the whole card.
-    const inherited = card.groups.flatMap((g) => g.inherited);
     return html`
       <section class="card ${card.featureOn ? "" : "off"}" id="card-${card.id}">
         <header>
@@ -223,35 +225,33 @@ export class VThermEditor extends LitElement {
         </header>
         ${card.featureOn
           ? html`
-              ${card.centralKey ? html`<div class="cardctl">${this.centralSwitch(card.centralKey, card.usesCentral)}</div>` : nothing}
-              ${card.centralKey && inherited.length ? this.inheritedBlock(inherited) : nothing}
+              ${card.method ? this.methodChoice(card.method) : nothing}
               ${baseErrors.map((code) => html`<ha-alert alert-type="error">${errorText(this.hass, code)}</ha-alert>`)}
-              ${card.groups.map((g) => this.renderGroup(g, fieldErrors, !!card.centralKey))}
+              ${card.groups.map((g) => this.renderGroup(g, fieldErrors))}
             `
           : nothing}
       </section>
     `;
   }
 
-  private renderGroup(g: GroupView, fieldErrors: Record<string, string>, inheritedShownByCard = false) {
+  private renderGroup(g: GroupView, fieldErrors: Record<string, string>) {
     const title = GROUP_TITLE[g.id];
     const main = g.own.filter((f) => f.level !== "advanced");
     const advanced = g.own.filter((f) => f.level === "advanced");
-    const showHeader = title || g.featureKey || g.centralKey;
+    const showHeader = title || g.featureKey;
     return html`
       <div class="group">
         ${showHeader
           ? html`<div class="ghead">
               <h3>${title ?? ""}</h3>
-              ${g.centralKey && g.featureOn ? this.centralSwitch(g.centralKey, g.usesCentral) : nothing}
               ${g.featureKey ? this.featureSwitch(g.featureKey, g.featureOn) : nothing}
             </div>`
           : nothing}
         ${g.featureOn
           ? html`
-              ${g.method ? this.methodChoice(g.method) : nothing}
+              ${g.centralKey ? this.overrideToggle(g.centralKey, g.usesCentral) : nothing}
               ${main.length ? html`<div class="fields">${main.map((f) => this.field(f, fieldErrors))}</div>` : nothing}
-              ${g.inherited.length && !inheritedShownByCard ? this.inheritedBlock(g.inherited) : nothing}
+              ${g.inherited.length ? this.inheritedBlock(g.inherited) : nothing}
               ${advanced.length
                 ? html`<details class="adv">
                     <summary>Advanced settings <span class="count">${advanced.length}</span></summary>
@@ -328,16 +328,17 @@ export class VThermEditor extends LitElement {
     ></ha-switch>`;
   }
 
-  private centralSwitch(key: string, usesCentral: boolean) {
-    return html`<div class="seg" role="radiogroup" aria-label="Where the values come from">
-      <button role="radio" aria-checked=${usesCentral} class=${usesCentral ? "on" : ""} @click=${() => this.change({ [key]: true })}>Central</button>
-      <button role="radio" aria-checked=${!usesCentral} class=${usesCentral ? "" : "on"} @click=${() => this.change({ [key]: false })}>Own</button>
-    </div>`;
+  /** VT's "use central X" flag, shown the other way round: on means this VTherm has its own values. */
+  private overrideToggle(key: string, usesCentral: boolean) {
+    return html`<label class="override">
+      <ha-switch .checked=${!usesCentral} @change=${(e: any) => this.change({ [key]: !e.target.checked })}></ha-switch>
+      <span>Override central configuration</span>
+    </label>`;
   }
 
-  private methodChoice(method: NonNullable<GroupView["method"]>) {
+  private methodChoice(method: NonNullable<CardView["method"]>) {
     return html`<div class="seg wide" role="radiogroup" aria-label="Detection method">
-      ${Object.keys(method.options).map(
+      ${method.options.map(
         (id) =>
           html`<button role="radio" aria-checked=${id === method.current} class=${id === method.current ? "on" : ""} @click=${() => this.setWindowMethod(id)}>
             ${METHOD_TEXT[id] ?? id}
@@ -350,7 +351,7 @@ export class VThermEditor extends LitElement {
     :host { display: block; --gap: 16px; }
     .loading { display: flex; justify-content: center; padding: 64px; }
     .toolbar {
-      position: sticky; top: 0; max-width: 1500px; margin: 0 auto; box-sizing: border-box; z-index: 3; display: flex; align-items: center; gap: 12px;
+      position: sticky; top: 0; max-width: 1100px; margin: 0 auto; box-sizing: border-box; z-index: 3; display: flex; align-items: center; gap: 12px;
       padding: 8px 16px; background: var(--app-header-background-color, var(--primary-background-color));
       border-bottom: 1px solid var(--divider-color);
     }
@@ -360,7 +361,7 @@ export class VThermEditor extends LitElement {
     .chip { font-size: 12px; padding: 2px 10px; border-radius: 12px; background: var(--secondary-background-color); color: var(--secondary-text-color); white-space: nowrap; }
     .chip.warn { background: rgba(var(--rgb-warning-color, 255, 166, 0), 0.18); color: var(--warning-color); }
 
-    .body { display: grid; gap: var(--gap); padding: var(--gap); max-width: 1500px; margin: 0 auto; box-sizing: border-box; }
+    .body { display: grid; gap: var(--gap); padding: var(--gap); max-width: 1100px; margin: 0 auto; box-sizing: border-box; }
     .body.wide { grid-template-columns: 220px minmax(0, 1fr); align-items: start; }
     .content { min-width: 0; display: flex; flex-direction: column; gap: var(--gap); }
 
@@ -395,7 +396,7 @@ export class VThermEditor extends LitElement {
     .htext { flex: 1; min-width: 0; }
     .card h2 { margin: 0; font-size: 17px; font-weight: 500; }
     .card header p { margin: 2px 0 0; font-size: 13px; color: var(--secondary-text-color); line-height: 1.4; }
-    .cardctl { display: flex; }
+    .override { display: inline-flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; align-self: flex-start; }
 
     .group { display: flex; flex-direction: column; gap: 12px; }
     .group + .group { border-top: 1px solid var(--divider-color); padding-top: 14px; }

@@ -36,13 +36,15 @@ CARDS: list[dict[str, Any]] = [
     {
         "id": "room",
         "groups": [
-            _group("room", _f(("name", E), ("temperature_sensor_entity_id", E), ("last_seen_temperature_sensor_entity_id", A))),
+            _group(
+                "room",
+                _f(("name", E), ("temperature_sensor_entity_id", E), ("humidity_sensor_entity_id", C), ("last_seen_temperature_sensor_entity_id", A)),
+            ),
             _group(
                 "range",
                 _f(("external_temperature_sensor_entity_id", C), ("temp_min", C), ("temp_max", C), ("step_temperature", A)),
                 {"type": "central", "key": "use_main_central_config"},
             ),
-            _group("humidity", _f(("humidity_sensor_entity_id", C)), {"type": "feature", "key": "use_humidity_feature"}),
         ],
     },
     {
@@ -128,46 +130,45 @@ CARDS: list[dict[str, Any]] = [
     {
         "id": "window",
         "control": {"type": "feature", "key": "use_window_feature"},
+        # Sensor or temperature drop: hides the other method's fields in every group of the card.
+        "method": {
+            "options": {
+                "sensor": ["window_sensor_entity_id", "window_delay", "window_off_delay"],
+                "drop": ["window_auto_open_threshold", "window_auto_close_threshold", "window_auto_max_duration"],
+            },
+        },
         "groups": [
+            _group("window_detect", _f(("window_sensor_entity_id", E))),
             _group(
-                "window_detect",
+                "window_behaviour",
                 _f(
-                    ("window_sensor_entity_id", E),
-                    ("window_delay", C),
-                    ("window_off_delay", A),
+                    ("window_action", E),
                     ("window_auto_open_threshold", E),
+                    ("window_delay", C),
                     ("window_auto_close_threshold", C),
                     ("window_auto_max_duration", C),
+                    ("window_off_delay", A),
                 ),
-                {
-                    "type": "method",
-                    "options": {
-                        "sensor": ["window_sensor_entity_id", "window_delay", "window_off_delay"],
-                        "drop": ["window_auto_open_threshold", "window_auto_close_threshold", "window_auto_max_duration"],
-                    },
-                },
+                {"type": "central", "key": "use_window_central_config"},
             ),
-            _group("window_action", _f(("window_action", E))),
         ],
-        # Window settings other than the sensor follow this flag (shown as "central | own").
-        "central": "use_window_central_config",
     },
     {
         "id": "motion",
         "control": {"type": "feature", "key": "use_motion_feature"},
-        "central": "use_motion_central_config",
         "groups": [
+            _group("motion_detect", _f(("motion_sensor_entity_id", E))),
             _group(
-                "motion",
-                _f(("motion_sensor_entity_id", E), ("motion_preset", E), ("no_motion_preset", E), ("motion_delay", C), ("motion_off_delay", C)),
-            )
+                "motion_behaviour",
+                _f(("motion_preset", E), ("no_motion_preset", E), ("motion_delay", C), ("motion_off_delay", C)),
+                {"type": "central", "key": "use_motion_central_config"},
+            ),
         ],
     },
     {
         "id": "presence",
         "control": {"type": "feature", "key": "use_presence_feature"},
-        "central": "use_presence_central_config",
-        "groups": [_group("presence", _f(("presence_sensor_entity_id", E)))],
+        "groups": [_group("presence", _f(("presence_sensor_entity_id", E)), {"type": "central", "key": "use_presence_central_config"})],
     },
     {
         "id": "power",
@@ -234,16 +235,24 @@ CARDS: list[dict[str, Any]] = [
     },
     {
         "id": "lock",
-        "central": "use_lock_central_config",
-        "groups": [_group("lock", _f(("lock_users", C), ("lock_automations", C), ("lock_code", A), ("auto_relock_sec", A)))],
+        "groups": [
+            _group(
+                "lock",
+                _f(("lock_users", C), ("lock_automations", C), ("lock_code", A), ("auto_relock_sec", A)),
+                {"type": "central", "key": "use_lock_central_config"},
+            )
+        ],
     },
 ]
 
-# Fields that are page controls (switches, central | own) rather than fields of their own.
-CONTROL_KEYS = {"thermostat_type"} | {
+# Flags the panel sets from a field's value instead of showing them (set when the field has a value).
+DERIVED_FLAGS = {"humidity_sensor_entity_id": "use_humidity_feature"}
+
+# Fields that are page controls (switches, "override central") rather than fields of their own.
+CONTROL_KEYS = {"thermostat_type", *DERIVED_FLAGS.values()} | {
     key
     for card in CARDS
-    for key in [card.get("central"), (card.get("control") or {}).get("key")]
+    for key in [(card.get("control") or {}).get("key")]
     + [k for g in card["groups"] for k in ((g["control"] or {}).get("key"), (g["control"] or {}).get("central"))]
     if key
 }

@@ -4,7 +4,8 @@ import { listEntries, type EntrySummary } from "./api";
 import type { VThermEditor } from "./editor";
 import { loadHaFormElements } from "./load-ha-elements";
 import { loadVtTranslations } from "./localize";
-import "./switcher";
+import { CENTRAL, CHOOSE_TYPE } from "./switcher";
+import "./chooser";
 import "./editor";
 
 type Selection = { entryId?: string; newType?: string };
@@ -78,13 +79,19 @@ export class VThermConfigPanel extends LitElement {
               <vtherm-switcher
                 .hass=${this.hass}
                 .entries=${this.entries}
-                .types=${this.types}
                 .selected=${sel.entryId}
                 .newType=${sel.newType}
                 @vtherm-open=${(e: CustomEvent) => this.navigate(e.detail)}
               ></vtherm-switcher>
             </div>
-            ${sel.entryId || sel.newType
+            ${sel.newType === CHOOSE_TYPE
+              ? html`<vtherm-type-chooser
+                  .hass=${this.hass}
+                  .types=${this.types}
+                  .hasCentral=${this.entries.some((e) => e.thermostat_type === CENTRAL)}
+                  @vtherm-open=${(e: CustomEvent) => this.navigate(e.detail)}
+                ></vtherm-type-chooser>`
+              : sel.entryId || sel.newType
               ? html`<vtherm-editor
                   .hass=${this.hass}
                   .narrow=${this.narrow}
@@ -111,7 +118,7 @@ export class VThermConfigPanel extends LitElement {
       border-bottom: var(--app-header-border-bottom, none);
     }
     .title { font-size: 20px; }
-    .switcher { padding: 16px 16px 4px; max-width: 1500px; margin: 0 auto; }
+    .switcher { padding: 16px 16px 4px; max-width: 1100px; margin: 0 auto; }
     .loading, .empty { display: flex; justify-content: center; padding: 64px; color: var(--secondary-text-color); }
   `;
 }

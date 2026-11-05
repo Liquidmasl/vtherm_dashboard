@@ -37,10 +37,10 @@ const states = await page.evaluate(() => document.querySelector("home-assistant"
 const climate = Object.values(states).find((s) => s.entity_id.startsWith("climate.") && s.attributes.friendly_name === name);
 ok(!!climate, `climate entity exists for "${name}"`);
 
-// Edit through the real controls: window card to "Own", then sensor and delay.
-await editor.locator("#card-window .cardctl button", { hasText: "Own" }).click();
+// Edit through the real controls: override the central window behaviour, then sensor and delay.
+await editor.locator("#card-window .override ha-switch").click();
 await page.waitForTimeout(800);
-ok((await editor.locator("#card-window vt-field").count()) > 2, "window card shows own fields after switching to Own");
+ok((await editor.locator("#card-window vt-field").count()) > 2, "window card shows own fields after overriding central");
 await editor.evaluate((ed) => ed.change({ window_sensor_entity_id: "input_boolean.fake_window_sensor1", window_delay: 77 }));
 await page.waitForTimeout(1000);
 await editor.getByRole("button", { name: "Save" }).click();

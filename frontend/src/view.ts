@@ -16,7 +16,6 @@ export interface GroupView {
   /** "Central | own" switch on this group. */
   centralKey?: string;
   usesCentral: boolean;
-  method?: { options: Record<string, string[]>; current: string };
   own: FieldView[];
   inherited: FieldView[];
 }
@@ -25,8 +24,7 @@ export interface CardView {
   id: string;
   featureKey?: string;
   featureOn: boolean;
-  centralKey?: string;
-  usesCentral: boolean;
+  method?: { options: string[]; current: string };
   groups: GroupView[];
   steps: Set<string>;
 }
@@ -39,7 +37,7 @@ export function windowMethod(data: Infos, picked?: string): string {
   return isEmpty(data.window_sensor_entity_id) && !isEmpty(data.window_auto_open_threshold) ? "drop" : "sensor";
 }
 
-function groupView(group: LayoutGroup, layout: Layout, data: Infos, method: string): GroupView | null {
+function groupView(group: LayoutGroup, layout: Layout, data: Infos, hidden: Set<string>): GroupView | null {
   const { fields } = layout;
   if (group.types && !group.types.includes(data.thermostat_type)) return null;
   const c = group.control;
@@ -49,13 +47,7 @@ function groupView(group: LayoutGroup, layout: Layout, data: Infos, method: stri
   const centralName = c?.type === "central" ? c.key : c?.central;
   const centralKey = centralName && fields[centralName] ? centralName : undefined;
 
-  let items = group.fields.filter((f) => fields[f.key]).map((f) => ({ ...f, desc: fields[f.key] }));
-  let methodView: GroupView["method"];
-  if (c?.type === "method" && c.options) {
-    methodView = { options: c.options, current: method };
-    const hidden = new Set(Object.entries(c.options).filter(([id]) => id !== method).flatMap(([, keys]) => keys));
-    items = items.filter((f) => !hidden.has(f.key));
-  }
+  const items = group.fields.filter((f) => fields[f.key] && !hidden.has(f.key)).map((f) => ({ ...f, desc: fields[f.key] }));
   if (!items.length && !featureKey) return null;
   return {
     id: group.id,
@@ -63,7 +55,6 @@ function groupView(group: LayoutGroup, layout: Layout, data: Infos, method: stri
     featureOn: featureKey ? data[featureKey] === true : true,
     centralKey,
     usesCentral: centralKey ? data[centralKey] !== false : false,
-    method: methodView,
     own: items.filter((f) => !f.desc.inherited),
     inherited: items.filter((f) => f.desc.inherited),
   };
@@ -71,7 +62,6 @@ function groupView(group: LayoutGroup, layout: Layout, data: Infos, method: stri
 
 export function buildCards(layout: Layout, data: Infos, pickedMethod?: string): CardView[] {
   const { fields } = layout;
-  const method = windowMethod(data, pickedMethod);
   const control = new Set(layout.layout.control_keys);
   const placed = new Set<string>();
   const cards: CardView[] = [];
@@ -79,8 +69,14 @@ export function buildCards(layout: Layout, data: Infos, pickedMethod?: string): 
   const addCard = (card: LayoutCard) => {
     card.groups.filter((g) => !g.types || g.types.includes(data.thermostat_type)).forEach((g) => g.fields.forEach((f) => placed.add(f.key)));
     const featureKey = card.control?.key && fields[card.control.key] ? card.control.key : undefined;
-    const centralKey = card.central && fields[card.central] ? card.central : undefined;
-    const groups = card.groups.map((g) => groupView(g, layout, data, method)).filter((g): g is GroupView => !!g);
+    let method: CardView["method"];
+    let hidden = new Set<string>();
+    if (card.method) {
+      const current = windowMethod(data, pickedMethod);
+      method = { options: Object.keys(card.method.options), current };
+      hidden = new Set(Object.entries(card.method.options).filter(([id]) => id !== current).flatMap(([, keys]) => keys));
+    }
+    const groups = card.groups.map((g) => groupView(g, layout, data, hidden)).filter((g): g is GroupView => !!g);
     if (!groups.length && !featureKey) return;
     const steps = new Set<string>();
     groups.forEach((g) => [...g.own, ...g.inherited].forEach((f) => steps.add(f.desc.step)));
@@ -88,8 +84,7 @@ export function buildCards(layout: Layout, data: Infos, pickedMethod?: string): 
       id: card.id,
       featureKey,
       featureOn: featureKey ? data[featureKey] === true : true,
-      centralKey,
-      usesCentral: centralKey ? data[centralKey] !== false : false,
+      method,
       groups,
       steps,
     });
