@@ -16,9 +16,7 @@
   "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/Liquidmasl/vtherm_dashboard/issues",
-  "requirements": [
-    "voluptuous-serialize>=2.6.0"
-  ],
+  "requirements": [],
   "single_config_entry": true,
-  "version": "0.1.1"
+  "version": "0.1.2"
 }

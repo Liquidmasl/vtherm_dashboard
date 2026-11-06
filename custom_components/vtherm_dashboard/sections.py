@@ -15,8 +15,12 @@ from dataclasses import dataclass
 from typing import Any
 
 import voluptuous as vol
-import voluptuous_serialize
 from homeassistant.helpers import config_validation as cv
+
+try:  # HA 2026.10+: schemas are probatio objects, serialized the way HA's flow views do it.
+    from probatio import to_field_list as _to_field_list
+except ImportError:  # older HA ships voluptuous_serialize
+    from voluptuous_serialize import convert as _to_field_list
 
 from custom_components.versatile_thermostat import config_schema as s
 from custom_components.versatile_thermostat import const as c
@@ -234,7 +238,7 @@ def init_feature_flags(infos: Infos) -> Infos:
 
 def serialize(schema: vol.Schema) -> list[dict[str, Any]]:
     """Schema in the format ``<ha-form>`` takes (the one HA uses for flow forms)."""
-    return voluptuous_serialize.convert(schema, custom_serializer=cv.custom_serializer)
+    return _to_field_list(schema, custom_serializer=cv.custom_serializer)
 
 
 def schema_keys(schema: vol.Schema) -> list[str]:

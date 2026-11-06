@@ -39,7 +39,7 @@ It does not change Versatile Thermostat: it saves through VT's own config flow.
 
 ## Install
 
-Requires Versatile Thermostat (tested with 10.6.3) and Home Assistant 2026.3 or newer.
+Requires Versatile Thermostat (tested with 10.6.3) and Home Assistant 2026.3 or newer (tested on 2026.8 and 2026.10).
 
 1. HACS → ⋮ → Custom repositories → `https://github.com/Liquidmasl/vtherm_dashboard`, type
    *Integration*.

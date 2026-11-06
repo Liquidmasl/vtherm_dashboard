@@ -2,7 +2,7 @@
 # VT is mounted from a sibling checkout (override with VT_REPO), the plugin from this repo.
 services:
   homeassistant:
-    image: ghcr.io/home-assistant/home-assistant:${HA_VERSION:-2026.8.2}
+    image: ghcr.io/home-assistant/home-assistant:${HA_VERSION:-2026.10.4}
     container_name: vtherm-dashboard-ha
     ports:
       - "${HA_PORT:-8124}:8123"
