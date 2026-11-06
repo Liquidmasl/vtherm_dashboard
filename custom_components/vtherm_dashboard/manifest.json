@@ -1,14 +1,24 @@
 {
   "domain": "vtherm_dashboard",
   "name": "VTherm Dashboard",
-  "codeowners": ["@Liquidmasl"],
+  "codeowners": [
+    "@Liquidmasl"
+  ],
   "config_flow": true,
-  "dependencies": ["http", "frontend", "panel_custom", "websocket_api", "versatile_thermostat"],
+  "dependencies": [
+    "http",
+    "frontend",
+    "panel_custom",
+    "websocket_api",
+    "versatile_thermostat"
+  ],
   "documentation": "https://github.com/Liquidmasl/vtherm_dashboard",
   "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/Liquidmasl/vtherm_dashboard/issues",
-  "requirements": [],
+  "requirements": [
+    "voluptuous-serialize>=2.6.0"
+  ],
   "single_config_entry": true,
-  "version": "0.1.0"
+  "version": "0.1.1"
 }
