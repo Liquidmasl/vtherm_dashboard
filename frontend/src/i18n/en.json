@@ -209,8 +209,8 @@
   },
   "proportional_function": {
    "label": "Algorithm",
-   "hint": "TPI is built in; plugins such as SmartPI add others.",
-   "info": "SmartPI learns the room and is recommended by VT's author."
+   "hint": "TPI is built in. Other algorithms are separate plugins.",
+   "info": "Only TPI ships with Versatile Thermostat. Other algorithms, such as **SmartPI** (learns the room; recommended by VT's author), are separate plugins you install first (versatile-thermostat.org/en/plugins). Once installed, they appear in this list."
   },
   "cycle_min": {
    "label": "Cycle length (min)",

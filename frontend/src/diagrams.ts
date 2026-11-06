@@ -47,9 +47,9 @@ const DIAGRAMS: Record<string, () => SVGTemplateResult> = {
   valve_curve: () => svg`
     <line x1="24" x2="24" y1="8" y2=${H - 14} stroke=${M}></line>${axis()}
     <line x1="24" x2=${W - 8} y1="22" y2="22" stroke=${B} stroke-dasharray="3 3"></line>
-    <path d="M24 ${H - 14} L 70 ${H - 14} L 70 60 L 190 22 L ${W - 8} 22" fill="none" stroke=${A} stroke-width="2"></path>
-    <line x1="70" x2="70" y1="60" y2=${H - 14} stroke=${B} stroke-dasharray="3 3"></line>
-    ${label(72, 72, "closed below", "start", B)}${label(74, 58, "min opening", "start", A)}${label(W - 8, 18, "max opening", "end", B)}
+    <path d="M24 ${H - 14} L 96 ${H - 14} L 96 60 L 196 22 L ${W - 8} 22" fill="none" stroke=${A} stroke-width="2"></path>
+    <line x1="96" x2="96" y1="60" y2=${H - 14} stroke=${B} stroke-dasharray="3 3"></line>
+    ${label(102, 76, "closed below", "start", B)}${label(92, 58, "min opening", "end", A)}${label(W - 8, 18, "max opening", "end", B)}
     ${label(W - 8, H - 3, "requested →", "end")}${label(4, 12, "sent ↑")}
   `,
   // A wanted value that wiggles, and the sent value that only moves by big enough steps.
