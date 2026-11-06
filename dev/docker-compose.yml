@@ -3,7 +3,7 @@
 services:
   homeassistant:
     image: ghcr.io/home-assistant/home-assistant:${HA_VERSION:-2026.8.2}
-    container_name: vtherm-config-panel-ha
+    container_name: vtherm-dashboard-ha
     ports:
       - "${HA_PORT:-8124}:8123"
     environment:
@@ -11,5 +11,5 @@ services:
     volumes:
       - ./config:/config
       - ${VT_REPO:-../../versatile_thermostat}/custom_components/versatile_thermostat:/config/custom_components/versatile_thermostat:ro
-      - ../custom_components/vtherm_config_panel:/config/custom_components/vtherm_config_panel:ro
+      - ../custom_components/vtherm_dashboard:/config/custom_components/vtherm_dashboard:ro
     restart: unless-stopped

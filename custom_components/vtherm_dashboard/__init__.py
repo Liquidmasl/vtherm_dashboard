@@ -1,4 +1,4 @@
-"""VTherm Config Panel: a full-page configuration UI for Versatile Thermostat."""
+"""VTherm Dashboard: a full-page configuration UI for Versatile Thermostat."""
 
 import logging
 

@@ -48,15 +48,15 @@ async function view(path, file, opts) {
 }
 
 const ids = await (async () => {
-  const { page } = await open("/vtherm-config");
-  const list = await page.evaluate(() => document.querySelector("home-assistant").hass.callWS({ type: "vtherm_config_panel/list" }));
+  const { page } = await open("/vtherm-dashboard");
+  const list = await page.evaluate(() => document.querySelector("home-assistant").hass.callWS({ type: "vtherm_dashboard/list" }));
   await page.close();
   return Object.fromEntries(list.entries.map((e) => [e.title, e.entry_id]));
 })();
-const at = (title) => `/vtherm-config?entry=${ids[title]}`;
+const at = (title) => `/vtherm-dashboard?entry=${ids[title]}`;
 
 await view(at("Bathroom"), "overview.png");
-await view("/vtherm-config?new=choose", "new-thermostat.png");
+await view("/vtherm-dashboard?new=choose", "new-thermostat.png");
 await tooltip(at("Bedroom"), "devices", "Treat as closed", "tooltip-valve-curve.png", { openAdvanced: true });
 await tooltip(at("Bedroom"), "devices", "Smallest opening change", "tooltip-send-threshold.png");
 await tooltip(at("Bathroom"), "heating", "Cycle length", "tooltip-tpi-cycle.png");

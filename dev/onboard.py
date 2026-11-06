@@ -38,11 +38,21 @@ def call(method, path, body=None, token=None, form=False):
 def wait_for_ha():
     for _ in range(180):
         try:
-            call("GET", "/api/onboarding")
+            call("GET", "/manifest.json")
             return
         except (urllib.error.URLError, ConnectionError):
             time.sleep(2)
     sys.exit("HA did not come up")
+
+
+def onboarding_steps() -> dict[str, bool]:
+    """Done-state per onboarding step; HA drops the endpoint (404) once onboarding is complete."""
+    try:
+        return {s["step"]: s["done"] for s in call("GET", "/api/onboarding")}
+    except urllib.error.HTTPError as err:
+        if err.code == 404:
+            return {"user": True}
+        raise
 
 
 def login() -> str:
@@ -55,7 +65,7 @@ def login() -> str:
 def main():
 
     wait_for_ha()
-    steps = {s["step"]: s["done"] for s in call("GET", "/api/onboarding")}
+    steps = onboarding_steps()
     if not steps.get("user"):
         res = call("POST", "/api/onboarding/users", {"client_id": CLIENT_ID, "name": "Dev", "username": "dev", "password": "dev", "language": "en"})
         tok = call("POST", "/auth/token", {"grant_type": "authorization_code", "code": res["auth_code"], "client_id": CLIENT_ID}, form=True)
@@ -65,9 +75,9 @@ def main():
         call("POST", "/api/onboarding/integration", {"client_id": CLIENT_ID, "redirect_uri": CLIENT_ID}, token=access)
     access = login()
 
-    entries = call("GET", "/api/config/config_entries/entry?domain=vtherm_config_panel", token=access)
+    entries = call("GET", "/api/config/config_entries/entry?domain=vtherm_dashboard", token=access)
     if not entries:
-        flow = call("POST", "/api/config/config_entries/flow", {"handler": "vtherm_config_panel"}, token=access)
+        flow = call("POST", "/api/config/config_entries/flow", {"handler": "vtherm_dashboard"}, token=access)
         call("POST", f"/api/config/config_entries/flow/{flow['flow_id']}", {}, token=access)
     TOKEN_FILE.write_text(access)
     print(f"HA ready at {BASE} (dev/dev), token in {TOKEN_FILE}")

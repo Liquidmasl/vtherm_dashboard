@@ -1,9 +1,9 @@
 {
-  "name": "vtherm-config-panel",
+  "name": "vtherm-dashboard",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild frontend/src/main.ts --bundle --format=esm --target=es2022 --minify --outfile=custom_components/vtherm_config_panel/frontend/vtherm-config-panel.js",
+    "build": "esbuild frontend/src/main.ts --bundle --format=esm --target=es2022 --minify --outfile=custom_components/vtherm_dashboard/frontend/vtherm-dashboard.js",
     "watch": "npm run build -- --watch --sourcemap=inline",
     "typecheck": "tsc --noEmit"
   },

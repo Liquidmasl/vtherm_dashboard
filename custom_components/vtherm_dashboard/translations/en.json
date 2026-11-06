@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "VTherm Config Panel",
+        "title": "VTherm Dashboard",
         "description": "Adds a 'Versatile Thermostat' page to the sidebar to create and configure your VTherms."
       }
     },

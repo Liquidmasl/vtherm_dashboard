@@ -1,5 +1,5 @@
 // Send one websocket command to the dev HA and print the result.
-// Usage: node dev/ws.mjs '{"type":"vtherm_config_panel/list"}'
+// Usage: node dev/ws.mjs '{"type":"vtherm_dashboard/list"}'
 // Uses a long-lived token in dev/.llat, created on first use from onboard.py's dev/.token.
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 
@@ -25,7 +25,7 @@ function connect(token) {
 let llat = existsSync(dir + ".llat") ? readFileSync(dir + ".llat", "utf8").trim() : null;
 if (!llat) {
   const c = await connect(readFileSync(dir + ".token", "utf8").trim());
-  const r = await c.call({ type: "auth/long_lived_access_token", client_name: "vtherm-config-panel-dev", lifespan: 3650 });
+  const r = await c.call({ type: "auth/long_lived_access_token", client_name: "vtherm-dashboard-panel-dev", lifespan: 3650 });
   llat = r.result;
   writeFileSync(dir + ".llat", llat);
   c.close();

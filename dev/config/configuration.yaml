@@ -38,7 +38,7 @@ logger:
         custom_components.versatile_thermostat: debug
         custom_components.vtherm_auto_fan_extended: debug
         custom_components.vtherm_heating_failure_detection: debug
-        custom_components.vtherm_config_panel: debug
+        custom_components.vtherm_dashboard: debug
 
 
 versatile_thermostat:

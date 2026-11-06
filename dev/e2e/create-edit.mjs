@@ -11,7 +11,7 @@ page.on("pageerror", (e) => console.log("pageerror:", e.message));
 const ok = (cond, msg) => { console.log(`${cond ? "✓" : "✗"} ${msg}`); if (!cond) process.exitCode = 1; };
 
 await login(page);
-await page.goto(`${BASE}/vtherm-config?new=thermostat_over_climate`);
+await page.goto(`${BASE}/vtherm-dashboard?new=thermostat_over_climate`);
 const editor = page.locator("vtherm-editor");
 await editor.locator("vt-field").first().waitFor();
 await page.waitForTimeout(4000); // HA's launch screen fades out after the panel renders
@@ -50,7 +50,7 @@ ok(true, "edit saved");
 if (out) await page.screenshot({ path: `${out}-2-saved.png` });
 
 // Reload the page: the saved value must come back from VT's stored config.
-await page.goto(`${BASE}/vtherm-config?entry=${entryId}`);
+await page.goto(`${BASE}/vtherm-dashboard?entry=${entryId}`);
 await editor.locator("vt-field").first().waitFor();
 await page.waitForTimeout(1500);
 const data = await editor.evaluate((ed) => ed.data);

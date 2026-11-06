@@ -73,7 +73,7 @@ export interface SaveResult {
   incomplete: boolean;
 }
 
-const P = "vtherm_config_panel";
+const P = "vtherm_dashboard";
 
 export const listEntries = (hass: any) =>
   hass.callWS({ type: `${P}/list` }) as Promise<{ entries: EntrySummary[]; thermostat_types: string[] }>;

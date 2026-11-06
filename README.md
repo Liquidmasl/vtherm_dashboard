@@ -1,4 +1,4 @@
-# VTherm Config Panel
+# VTherm Dashboard
 
 A full-page configuration UI for [Versatile Thermostat](https://github.com/jmcollin78/versatile_thermostat),
 instead of its step-by-step config flow. One sidebar entry, all your VTherms on top, every
@@ -41,10 +41,10 @@ It does not change Versatile Thermostat: it saves through VT's own config flow.
 
 Requires Versatile Thermostat (tested with 10.6.3) and Home Assistant 2026.3 or newer.
 
-1. HACS → ⋮ → Custom repositories → `https://github.com/Liquidmasl/vtherm_config_panel`, type
+1. HACS → ⋮ → Custom repositories → `https://github.com/Liquidmasl/vtherm_dashboard`, type
    *Integration*.
-2. Install **VTherm Config Panel**, restart Home Assistant.
-3. Settings → Devices & services → Add integration → **VTherm Config Panel**.
+2. Install **VTherm Dashboard**, restart Home Assistant.
+3. Settings → Devices & services → Add integration → **VTherm Dashboard**.
 
 "Versatile Thermostat" then appears in the sidebar (admins only).
 
@@ -55,7 +55,7 @@ options flow (or config flow, for a new thermostat) in-process and answers each 
 values, so VT's validation, cleanup and reload run exactly as when you click through the flow.
 
 ```
-panel (Lit) ──websocket──► vtherm_config_panel
+panel (Lit) ──websocket──► vtherm_dashboard
                              ├ sections.py     which fields VT shows for this config (mirrors VT's menu)
                              ├ layout.py       which card, group and level each field goes into
                              ├ flow_driver.py  save = walk VT's config/options flow

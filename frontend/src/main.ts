@@ -17,7 +17,7 @@ function selectionFromUrl(): Selection {
 }
 
 /** Sidebar panel: VTherm switcher on top, the selected VTherm's settings below. State lives in the URL. */
-@customElement("vtherm-config-panel")
+@customElement("vtherm-dashboard-panel")
 export class VThermConfigPanel extends LitElement {
   @property({ attribute: false }) hass: any;
   @property({ type: Boolean }) narrow = false;
