@@ -215,7 +215,7 @@
   "cycle_min": {
    "label": "Durée du cycle (min)",
    "hint": "5 minutes conviennent à la plupart des pièces ; plus pour un chauffage lent.",
-   "info": "VT recalcule une fois par cycle et, pour un interrupteur, allume le radiateur une partie du cycle. Un système lent (plancher, accumulation) veut des cycles plus longs ; trop court, le radiateur ne chauffe jamais vraiment.",
+   "info": "À chaque cycle, VT calcule la chaleur nécessaire et, pour un interrupteur, garde le radiateur allumé pendant cette part du cycle. Des cycles courts réagissent plus vite mais commutent plus souvent ; un chauffage lent (plancher, accumulation) veut des cycles plus longs. Trop court, le radiateur ne chauffe jamais vraiment.",
    "diagram": "tpi_cycle"
   },
   "tpi_coef_int": {
@@ -234,13 +234,13 @@
    "label": "Durée de marche minimale (s)",
    "hint": "Les impulsions plus courtes sont ignorées.",
    "info": "Évite des impulsions trop courtes pour être utiles. 10 s par défaut.",
-   "diagram": "tpi_cycle"
+   "diagram": "min_on_off"
   },
   "minimal_deactivation_delay": {
    "label": "Durée d'arrêt minimale (s)",
    "hint": "Les pauses plus courtes sont ignorées (reste allumé).",
    "info": "Évite de couper quelques secondes seulement. 0 par défaut.",
-   "diagram": "tpi_cycle"
+   "diagram": "min_on_off"
   },
   "tpi_threshold_high": {
    "label": "Arrêt au-dessus de consigne + (°)",
@@ -486,7 +486,7 @@
  "diagrams": {
   "tpi_cycle": {
    "title": "Cycle de chauffe",
-   "caption": "Allumé pour la part calculée de chaque cycle."
+   "caption": "À chaque cycle, le radiateur chauffe pendant la part demandée."
   },
   "tpi_formula": {
    "title": "Combien chauffer",
@@ -535,6 +535,10 @@
   "stagger": {
    "title": "Plusieurs radiateurs dans une pièce",
    "caption": "Même part de cycle pour chacun, départs décalés."
+  },
+  "min_on_off": {
+   "title": "Durées de marche et d'arrêt minimales",
+   "caption": "Les impulsions trop courtes sont ignorées ; les pauses trop courtes aussi (reste allumé)."
   }
  },
  "types": {

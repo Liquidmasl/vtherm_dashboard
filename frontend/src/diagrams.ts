@@ -16,15 +16,28 @@ const hline = (y: number, color = G, dash = "") =>
 const axis = () => svg`<line x1="8" x2=${W - 8} y1=${H - 14} y2=${H - 14} stroke=${M} stroke-width="1"></line>`;
 
 const DIAGRAMS: Record<string, () => SVGTemplateResult> = {
-  // Three cycles: 60 %, 30 %, and a pulse shorter than the shortest on-time (skipped).
+  // Three cycles; in each, the heater runs for the share the algorithm asks for.
   tpi_cycle: () => svg`
     ${axis()}
     ${[0, 1, 2, 3].map((i) => svg`<line x1=${8 + i * 74.6} x2=${8 + i * 74.6} y1="20" y2=${H - 10} stroke=${G}></line>`)}
-    <rect x="8" y="34" width="44.8" height="34" fill=${A} rx="2"></rect>
-    <rect x="82.6" y="34" width="22.4" height="34" fill=${A} rx="2"></rect>
-    <rect x="157.2" y="34" width="5" height="34" fill="none" stroke=${B} stroke-dasharray="2 2"></rect>
-    ${label(30, 28, "60 %", "middle")}${label(94, 28, "30 %", "middle")}${label(W - 8, 28, "too short: skipped", "end", B)}
-    ${label(8, 12, "one cycle")}${label(W - 8, H - 3, "time", "end")}
+    <rect x="8" y="40" width="44.8" height="28" fill=${A} rx="2"></rect>
+    <rect x="82.6" y="40" width="22.4" height="28" fill=${A} rx="2"></rect>
+    <rect x="157.2" y="40" width="59.7" height="28" fill=${A} rx="2"></rect>
+    ${label(30, 34, "60 %", "middle")}${label(94, 34, "30 %", "middle")}${label(187, 34, "80 %", "middle")}
+    <line x1="8" x2="82.6" y1="14" y2="14" stroke=${B} stroke-width="2"></line>${label(88, 17, "cycle length", "start", B)}
+    ${label(W - 8, H - 3, "time", "end")}
+  `,
+  // Pulses shorter than the shortest on-time are skipped; pauses shorter than the shortest off-time too.
+  min_on_off: () => svg`
+    ${axis()}
+    ${[0, 1, 2, 3].map((i) => svg`<line x1=${8 + i * 74.6} x2=${8 + i * 74.6} y1="24" y2=${H - 10} stroke=${G}></line>`)}
+    <rect x="8" y="44" width="4" height="26" fill="none" stroke=${B} stroke-dasharray="2 2"></rect>
+    ${label(14, 18, "pulse too short:", "start", B)}${label(14, 28, "stays off", "start", B)}
+    <rect x="82.6" y="44" width="37.3" height="26" fill=${A} rx="2"></rect>${label(101, 40, "50 %", "middle")}
+    <rect x="157.2" y="44" width="68" height="26" fill=${A} rx="2"></rect>
+    <rect x="225.2" y="44" width="6.6" height="26" fill=${B}></rect>
+    ${label(W - 8, 18, "pause too short: stays on", "end", B)}
+    ${label(W - 8, H - 3, "time", "end")}
   `,
   // Heating share = room gap part + outdoor part, capped at 100 %.
   tpi_formula: () => svg`

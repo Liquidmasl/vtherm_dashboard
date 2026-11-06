@@ -215,7 +215,7 @@
   "cycle_min": {
    "label": "Cycle length (min)",
    "hint": "5 minutes suits most rooms; longer for slow heating.",
-   "info": "VT recalculates once per cycle and, for switches, turns the heater on for part of it. Slow systems (underfloor, storage heaters) want longer cycles; too short and the heater never warms up.",
+   "info": "Every cycle VT works out how much heat the room needs and, for switches, keeps the heater on for that share of the cycle. Short cycles react faster but switch more often; slow heating (underfloor, storage heaters) needs longer cycles. Too short and the heater never warms up.",
    "diagram": "tpi_cycle"
   },
   "tpi_coef_int": {
@@ -234,13 +234,13 @@
    "label": "Shortest on-time (s)",
    "hint": "Shorter heating pulses are skipped.",
    "info": "Avoids pulses too short for the heater to do anything. Default 10 s.",
-   "diagram": "tpi_cycle"
+   "diagram": "min_on_off"
   },
   "minimal_deactivation_delay": {
    "label": "Shortest off-time (s)",
    "hint": "Shorter pauses are skipped (stays on).",
    "info": "Avoids flicking off for a few seconds. Default 0.",
-   "diagram": "tpi_cycle"
+   "diagram": "min_on_off"
   },
   "tpi_threshold_high": {
    "label": "Stop heating above target + (°)",
@@ -486,7 +486,7 @@
  "diagrams": {
   "tpi_cycle": {
    "title": "Heating cycle",
-   "caption": "One bar per cycle: on for the computed share, off for the rest. Pulses shorter than the shortest on-time are skipped."
+   "caption": "Each cycle, the heater runs for the share the algorithm asks for."
   },
   "tpi_formula": {
    "title": "How much to heat",
@@ -535,6 +535,10 @@
   "stagger": {
    "title": "Several heaters in one room",
    "caption": "Each heater on for the same share of the cycle, start times shifted."
+  },
+  "min_on_off": {
+   "title": "Shortest on- and off-time",
+   "caption": "Very short pulses are skipped; very short pauses keep heating."
   }
  },
  "types": {
