@@ -15,6 +15,7 @@ import {
   type Gap,
   type Sample,
   type SlopePoint,
+  type ComfortStats,
   type TargetSample,
   type TpiPoint,
 } from "./insights";
@@ -457,12 +458,7 @@ export class LiveTpi extends Replay {
     const unit = this.hass.config?.unit_system?.temperature ?? "°C";
     const deg = (v: number) => `${v.toFixed(1)}°`;
     return html`
-      ${comfort
-        ? html`<p>
-            <span class="big">${pct(comfort.inBand)}</span> ${live("comfort_in_band", { range: live(`range_${this.range}`) })}
-            <br /><span class="muted">${live("comfort_extremes", { above: deg(comfort.maxAbove), below: deg(comfort.maxBelow) })}</span>
-          </p>`
-        : nothing}
+      ${comfort ? this.comfortTiles(comfort) : nothing}
       ${temps.length > 1
         ? html`${this.chart(
               {
@@ -477,7 +473,7 @@ export class LiveTpi extends Replay {
                     dash: "4 3",
                   },
                 ],
-                bands: comfort?.overshoots,
+                bands: comfort?.above,
                 fmt: (v) => v.toFixed(1),
                 unit,
                 maxGapMs: step * 1.5,
@@ -491,7 +487,7 @@ export class LiveTpi extends Replay {
             <div class="legend">
               <span><i class="sw room"></i>${live("legend_room_temp")}</span>
               <span><i class="sw dash"></i>${live("legend_target")}</span>
-              ${comfort?.overshoots.length ? html`<span><i class="sw box over"></i>${live("legend_overshoot")}</span>` : nothing}
+              ${comfort?.above.length ? html`<span><i class="sw box over"></i>${live("legend_overshoot")}</span>` : nothing}
               <span class="tag">${live("recorded")}</span>
             </div>`
         : nothing}
@@ -533,9 +529,26 @@ export class LiveTpi extends Replay {
     `;
   }
 
+  /** Heat-up, overshoot, holding: what the TPI settings change, each with its lever in the tooltip. */
+  private comfortTiles(c: ComfortStats) {
+    const tile = (label: string, value: string, hint: string) =>
+      html`<div class="tile" title=${hint}><span class="tv">${value}</span><span class="tl">${label}</span></div>`;
+    return html`<div class="tiles">
+        ${tile(live("heatup"), c.heatUpMs === null ? "–" : duration(c.heatUpMs), live("heatup_hint", { n: c.heatUps }))}
+        ${tile(live("overshoot"), c.overshoot === null ? "–" : `+${c.overshoot.toFixed(1)}°`, live("overshoot_hint"))}
+        ${tile(live("holding"), c.holding === null ? "–" : pct(c.holding), live("holding_hint"))}
+      </div>
+      <p class="muted small">${live("setbacks_left_out")}</p>`;
+  }
+
   static styles = [
     shared,
     css`
+      .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+      .tile { background: var(--card-background-color); border-radius: 8px; padding: 6px 8px; display: flex; flex-direction: column; cursor: help; }
+      .tv { font-size: 18px; font-variant-numeric: tabular-nums; }
+      .tl { font-size: 11px; color: var(--secondary-text-color); }
+      .small { font-size: 11px; margin-top: 4px; }
       .target { display: inline-flex; align-items: center; gap: 6px; }
       .target button { all: unset; cursor: pointer; width: 18px; height: 18px; line-height: 18px; text-align: center; border-radius: 4px; border: 1px solid var(--divider-color); color: var(--secondary-text-color); font-size: 12px; }
       .target button:focus-visible { outline: 2px solid var(--primary-color); }

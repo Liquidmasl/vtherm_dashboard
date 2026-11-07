@@ -288,48 +288,77 @@ export function temperatureHistory(room: Sample[], targets: TargetSample[], from
 }
 
 export interface ComfortStats {
-  /** Share of the settled time that the room was within ±band of the target. */
-  inBand: number;
-  maxAbove: number;
-  maxBelow: number;
-  /** Settled periods above target + band. */
-  overshoots: { start: number; end: number }[];
+  /** Average time to reach a raised target (within REACHED of it); null without a complete heat-up. */
+  heatUpMs: number | null;
+  heatUps: number;
+  /** Largest excess over the target in the OVERSHOOT_WINDOW after reaching it; null without a heat-up. */
+  overshoot: number | null;
+  /** Share of the holding time (target reached, not changed since) within ±band. */
+  holding: number | null;
+  /** Holding periods above target + band. */
+  above: { start: number; end: number }[];
 }
 
+const REACHED = 0.2; // °: a raised target counts as reached this close to it
+const OVERSHOOT_WINDOW = 2 * 3_600_000; // after reaching it; later excess is more likely sun or cooking
+
 /**
- * How well the room held its target. After the target changes the room needs time to get there
- * (a night setback starts above it, a heat-up below it), so each change starts a settling phase
- * that lasts until the room first comes within the band; settling time does not count.
+ * How the room followed its target, in the phases TPI affects: heating up to a raised target,
+ * overshooting it, then holding it. Setbacks (target lowered) are left out: heating is off and the
+ * room cools on its own.
  */
 export function comfortStats(points: TempPoint[], band = 0.5): ComfortStats | null {
-  const settled: { t: number; diff: number }[] = [];
-  let lastTarget: number | null = null;
-  let settling = false;
+  type Phase = "heatup" | "setback" | "hold";
+  let phase: Phase | null = null;
+  let target: number | null = null;
+  let changeAt = 0;
+  let reachedAt: number | null = null;
+  const heatUps: number[] = [];
+  let overshoot: number | null = null;
+  const holdDiffs: { t: number; diff: number }[] = [];
+
   for (const p of points) {
     if (p.target === null) {
-      lastTarget = null;
+      target = null;
+      phase = null;
       continue;
     }
     const diff = p.room - p.target;
-    if (p.target !== lastTarget) settling = lastTarget !== null || Math.abs(diff) > band;
-    lastTarget = p.target;
-    if (settling && Math.abs(diff) <= band) settling = false;
-    if (!settling) settled.push({ t: p.t, diff });
+    if (p.target !== target) {
+      // First point with a target: only a heat-up if we saw it start, otherwise judge from where the room is.
+      phase = target === null ? (Math.abs(diff) <= band ? "hold" : null) : p.target > target ? "heatup" : "setback";
+      changeAt = p.t;
+      reachedAt = phase === "hold" ? p.t : null;
+      target = p.target;
+    }
+    if (phase === "heatup" && diff >= -REACHED) {
+      heatUps.push(p.t - changeAt);
+      phase = "hold";
+      reachedAt = p.t;
+    } else if (phase === "setback" && diff <= REACHED) {
+      phase = "hold";
+      reachedAt = null; // no overshoot after cooling down
+    } else if (phase === null && Math.abs(diff) <= band) {
+      phase = "hold";
+    }
+    if (phase !== "hold") continue;
+    holdDiffs.push({ t: p.t, diff });
+    if (reachedAt !== null && heatUps.length && p.t - reachedAt <= OVERSHOOT_WINDOW) overshoot = Math.max(overshoot ?? 0, diff);
   }
-  if (!settled.length) return null;
 
+  if (!holdDiffs.length && !heatUps.length) return null;
   const step = points.length > 1 ? points[1].t - points[0].t : 0;
-  const overshoots: ComfortStats["overshoots"] = [];
-  for (const p of settled.filter((x) => x.diff > band)) {
-    const last = overshoots[overshoots.length - 1];
+  const above: ComfortStats["above"] = [];
+  for (const p of holdDiffs.filter((x) => x.diff > band)) {
+    const last = above[above.length - 1];
     if (last && p.t - last.end <= step * 1.5) last.end = p.t;
-    else overshoots.push({ start: p.t, end: p.t });
+    else above.push({ start: p.t, end: p.t });
   }
-  const diffs = settled.map((x) => x.diff);
   return {
-    inBand: diffs.filter((d) => Math.abs(d) <= band).length / diffs.length,
-    maxAbove: Math.max(0, ...diffs),
-    maxBelow: Math.max(0, ...diffs.map((d) => -d)),
-    overshoots,
+    heatUpMs: heatUps.length ? heatUps.reduce((a, b) => a + b, 0) / heatUps.length : null,
+    heatUps: heatUps.length,
+    overshoot,
+    holding: holdDiffs.length ? holdDiffs.filter((x) => Math.abs(x.diff) <= band).length / holdDiffs.length : null,
+    above,
   };
 }

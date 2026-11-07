@@ -678,11 +678,16 @@
   "tpi_vs_vt": "VT a enregistré {vt} en moyenne sur la même période ; avec ces réglages : {ours}. L'écart vient de réglages modifiés ou du mode sécurité.",
   "legend_slope": "pente (estimation)",
   "legend_vt_slope": "enregistrée par VT",
-  "comfort_in_band": "du temps à ±0,5° de la consigne {range} (hors trajet vers une nouvelle consigne).",
-  "comfort_extremes": "Plus au-dessus : +{above} · plus en dessous : −{below}",
   "legend_room_temp": "pièce",
   "legend_target": "consigne",
   "legend_overshoot": "au-dessus",
-  "recorded": "enregistré"
+  "recorded": "enregistré",
+  "heatup": "montée",
+  "overshoot": "dépassement",
+  "holding": "maintien ±0,5°",
+  "heatup_hint": "Temps moyen pour atteindre une consigne relevée ({n}×). Augmentez coef_int pour y arriver plus vite.",
+  "overshoot_hint": "Dépassement maximal dans les 2 h après l'avoir atteinte. Trop haut : baissez coef_int ou réglez les seuils d'arrêt/reprise.",
+  "holding_hint": "Part du temps à ±0,5° une fois la consigne atteinte. Se stabilise en dessous : augmentez coef_ext ; au-dessus : baissez-le.",
+  "setbacks_left_out": "Les baisses de consigne ne comptent pas : le chauffage est coupé et la pièce refroidit seule."
  }
 }
