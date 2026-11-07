@@ -81,7 +81,7 @@ export const listEntries = (hass: any) =>
   hass.callWS({ type: `${P}/list` }) as Promise<{ entries: EntrySummary[]; thermostat_types: string[] }>;
 
 export const getEntry = (hass: any, entry_id: string) =>
-  hass.callWS({ type: `${P}/get`, entry_id }) as Promise<Layout & { title: string; data: Infos }>;
+  hass.callWS({ type: `${P}/get`, entry_id }) as Promise<Layout & { title: string; climate_entity_id: string | null; data: Infos }>;
 
 export const newDraft = (hass: any, thermostat_type: string) =>
   hass.callWS({ type: `${P}/new`, thermostat_type }) as Promise<Layout & { data: Infos }>;

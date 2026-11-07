@@ -33,6 +33,8 @@ export const groupTitle = (id: string): string | undefined => (texts.groups as a
 export const typeText = (type: string) => (texts.types as any)[type] ?? (en.types as any)[type];
 export const windowText = (key: keyof Texts["window"]) => texts.window[key] ?? en.window[key];
 export const presetText = (key: keyof Texts["presets"]) => texts.presets[key] ?? en.presets[key];
+export const live = (key: string, vars?: Record<string, string | number>) =>
+  fill((texts.live as Record<string, string>)[key] ?? (en.live as Record<string, string>)[key] ?? key, vars);
 export const diagramText = (id: string): { title: string; caption: string } | undefined =>
   (texts.diagrams as any)[id] ?? (en.diagrams as any)[id];
 

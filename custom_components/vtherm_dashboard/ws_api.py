@@ -80,24 +80,25 @@ def _payload(hass: HomeAssistant, infos: Infos) -> dict[str, Any]:
     }
 
 
+def _climate_entity_id(hass: HomeAssistant, entry_id: str) -> str | None:
+    """The VTherm's climate entity, if it has been created."""
+    registry = er.async_get(hass)
+    return next((e.entity_id for e in er.async_entries_for_config_entry(registry, entry_id) if e.domain == "climate"), None)
+
+
 @websocket_api.require_admin
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/list"})
 @callback
 def ws_list(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict) -> None:
     """All VTherms, central configuration first."""
-    registry = er.async_get(hass)
     items = []
     for entry in _vt_entries(hass):
-        climate = next(
-            (e.entity_id for e in er.async_entries_for_config_entry(registry, entry.entry_id) if e.domain == "climate"),
-            None,
-        )
         items.append(
             {
                 "entry_id": entry.entry_id,
                 "title": entry.title,
                 "thermostat_type": entry.data.get(c.CONF_THERMOSTAT_TYPE),
-                "climate_entity_id": climate,
+                "climate_entity_id": _climate_entity_id(hass, entry.entry_id),
                 "underlying_count": len(entry.data.get(c.CONF_UNDERLYING_LIST) or []),
                 "prop_function": entry.data.get(c.CONF_PROP_FUNCTION),
                 "loaded": entry.state is ConfigEntryState.LOADED,
@@ -118,7 +119,10 @@ def ws_get(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg:
         return
     central_exists = _central_entry(hass) is not None
     infos = init_feature_flags(_init_central_flags(dict(entry.data), central_exists))
-    connection.send_result(msg["id"], {"title": entry.title, "data": infos, **_payload(hass, infos)})
+    connection.send_result(
+        msg["id"],
+        {"title": entry.title, "climate_entity_id": _climate_entity_id(hass, entry.entry_id), "data": infos, **_payload(hass, infos)},
+    )
 
 
 @websocket_api.require_admin

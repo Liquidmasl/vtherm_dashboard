@@ -3,6 +3,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import { describe, getEntry, getPresets, newDraft, save, type Infos, type Layout, type PresetEntities } from "./api";
 import { isBoolean, isWide } from "./field";
 import "./field";
+import "./live";
 import { cardText, fieldText, groupTitle, presetText, ui, windowText } from "./i18n";
 import { errorText, fieldHelper, fieldLabel, localizeSelectorValue, thermostatTypeLabel } from "./localize";
 import { buildCards, hasRequired, missingByCard, withDefaults, type CardView, type FieldView, type GroupView } from "./view";
@@ -28,6 +29,7 @@ export class VThermEditor extends LitElement {
   @state() private loadError?: string;
   @state() private wide = true;
   @state() private presets: PresetEntities = { own: {}, central: {} };
+  @state() private climateId?: string;
 
   private describeSeq = 0;
   private resizer = new ResizeObserver(([entry]) => (this.wide = entry.contentRect.width >= WIDE_PX));
@@ -53,11 +55,13 @@ export class VThermEditor extends LitElement {
     this.dirty = false;
     this.windowMethod = undefined;
     this.layout = undefined;
+    this.climateId = undefined;
     try {
       getPresets(this.hass, this.entryId).then((p) => (this.presets = p));
       if (this.entryId) {
         const res = await getEntry(this.hass, this.entryId);
         this.heading = res.title;
+        this.climateId = res.climate_entity_id ?? undefined;
         await this.applyLayout(res.data, res);
       } else if (this.newType) {
         const res = await newDraft(this.hass, this.newType);
@@ -234,16 +238,95 @@ export class VThermEditor extends LitElement {
           </div>
           ${card.featureKey ? this.featureSwitch(card.featureKey, card.featureOn) : nothing}
         </header>
-        ${card.method ? this.methodChoice(card.method) : nothing}
-        ${card.featureOn
-          ? html`
-              ${baseErrors.map((code) => html`<ha-alert alert-type="error">${errorText(this.hass, code)}</ha-alert>`)}
-              ${card.groups.map((g) => this.renderGroup(g, fieldErrors))}
-              ${card.id === "presets" ? this.presetTable() : nothing}
-            `
-          : nothing}
+        ${this.cardBody(
+          card,
+          html`
+            ${card.method ? this.methodChoice(card.method) : nothing}
+            ${card.featureOn
+              ? html`
+                  ${baseErrors.map((code) => html`<ha-alert alert-type="error">${errorText(this.hass, code)}</ha-alert>`)}
+                  ${card.groups.map((g) => this.renderGroup(g, fieldErrors))}
+                  ${card.id === "presets" ? this.presetTable() : nothing}
+                `
+              : nothing}
+          `,
+        )}
       </section>
     `;
+  }
+
+  /** The card's settings, with its live panel beside them (below on narrow cards) when it has one. */
+  private cardBody(card: CardView, settings: unknown) {
+    const panel = card.featureOn ? this.livePanel(card) : nothing;
+    if (panel === nothing) return settings;
+    return html`<div class="cbody">
+      <div class="settings">${settings}</div>
+      <aside class="live">${panel}</aside>
+    </div>`;
+  }
+
+  /** Value VT will use: the draft's own value, or the central configuration's for inherited fields. */
+  private effective(key: string): unknown {
+    const f = this.layout!.fields[key];
+    if (!f) return undefined;
+    return f.inherited ? this.layout!.central_values[key] : this.data[key];
+  }
+
+  private effectiveNumber(key: string, fallback: number): number {
+    const n = Number(this.effective(key));
+    return this.effective(key) === undefined || this.effective(key) === null || this.effective(key) === "" || !Number.isFinite(n) ? fallback : n;
+  }
+
+  private livePanel(card: CardView) {
+    const type = this.data.thermostat_type;
+    if (type === "thermostat_central_config") return nothing;
+    const sensorId = (this.effective("temperature_sensor_entity_id") as string) || undefined;
+    const outsideId = (this.effective("external_temperature_sensor_entity_id") as string) || undefined;
+    const n = (key: string, fallback: number) => this.effectiveNumber(key, fallback);
+    const nullable = (key: string) => {
+      const v = this.effective(key);
+      return v === undefined || v === null || v === "" ? null : Number(v);
+    };
+    switch (card.id) {
+      case "heating":
+        if (this.effective("proportional_function") !== "tpi" || !this.layout!.fields.tpi_coef_int) return nothing;
+        return html`<vt-live-tpi
+          .hass=${this.hass}
+          .climateId=${this.climateId}
+          .sensorId=${sensorId}
+          .outsideId=${outsideId}
+          .settings=${{
+            coefInt: n("tpi_coef_int", 0.6),
+            coefExt: n("tpi_coef_ext", 0.01),
+            thresholdLow: n("tpi_threshold_low", 0),
+            thresholdHigh: n("tpi_threshold_high", 0),
+            cycleMin: n("cycle_min", 5),
+            minOnSec: n("minimal_activation_delay", 0),
+            minOffSec: n("minimal_deactivation_delay", 0),
+          }}
+        ></vt-live-tpi>`;
+      case "window":
+        if (card.method?.current !== "drop") return nothing;
+        return html`<vt-live-window
+          .hass=${this.hass}
+          .climateId=${this.climateId}
+          .sensorId=${sensorId}
+          .openThreshold=${nullable("window_auto_open_threshold")}
+          .closeThreshold=${nullable("window_auto_close_threshold")}
+          .maxDurationMin=${nullable("window_auto_max_duration")}
+          .cycleMin=${n("cycle_min", 5)}
+        ></vt-live-window>`;
+      case "safety":
+        return html`<vt-live-safety
+          .hass=${this.hass}
+          .sensorId=${sensorId}
+          .outsideId=${outsideId}
+          .delayMin=${nullable("safety_delay_min")}
+          .minOnPercent=${nullable("safety_min_on_percent")}
+          .overClimate=${type === "thermostat_over_climate"}
+        ></vt-live-safety>`;
+    }
+    return nothing;
   }
 
   private renderGroup(g: GroupView, fieldErrors: Record<string, string>) {
@@ -431,7 +514,7 @@ export class VThermEditor extends LitElement {
     :host { display: block; --gap: 16px; }
     .loading { display: flex; justify-content: center; padding: 64px; }
     .toolbar {
-      position: sticky; top: 0; max-width: 1100px; margin: 0 auto; box-sizing: border-box; z-index: 3; display: flex; align-items: center; gap: 12px;
+      position: sticky; top: 0; max-width: 1240px; margin: 0 auto; box-sizing: border-box; z-index: 3; display: flex; align-items: center; gap: 12px;
       padding: 8px 16px; background: var(--app-header-background-color, var(--primary-background-color));
       border-bottom: 1px solid var(--divider-color);
     }
@@ -441,7 +524,7 @@ export class VThermEditor extends LitElement {
     .chip { font-size: 12px; padding: 2px 10px; border-radius: 12px; background: var(--secondary-background-color); color: var(--secondary-text-color); white-space: nowrap; }
     .chip.warn { background: rgba(var(--rgb-warning-color, 255, 166, 0), 0.18); color: var(--warning-color); }
 
-    .body { display: grid; gap: var(--gap); padding: var(--gap); max-width: 1100px; margin: 0 auto; box-sizing: border-box; }
+    .body { display: grid; gap: var(--gap); padding: var(--gap); max-width: 1240px; margin: 0 auto; box-sizing: border-box; }
     .body.wide { grid-template-columns: 220px minmax(0, 1fr); align-items: start; }
     .content { min-width: 0; display: flex; flex-direction: column; gap: var(--gap); }
 
@@ -470,6 +553,14 @@ export class VThermEditor extends LitElement {
       scroll-margin-top: 72px;
     }
     .card.off:not(:has(.seg)) { gap: 0; }
+    .card { container-type: inline-size; }
+    .cbody { display: flex; flex-direction: column; gap: 14px; }
+    .settings { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+    .live { background: var(--secondary-background-color); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+    @container (min-width: 720px) {
+      .cbody { display: grid; grid-template-columns: minmax(0, 1fr) 300px; align-items: start; }
+      .live { position: sticky; top: 76px; }
+    }
     /* Cards that ask for required values stand out a little; with values missing, in the warning colour. */
     .card.required { border-color: color-mix(in srgb, var(--primary-color) 45%, var(--divider-color)); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18); }
     .card.required.missing { border-color: color-mix(in srgb, var(--warning-color) 70%, var(--divider-color)); }
