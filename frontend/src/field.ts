@@ -131,6 +131,18 @@ export class VtField extends LitElement {
     }
   }
 
+  /**
+   * Step for the input's arrows. VT often allows any precision (step "any"), which browsers step by 1;
+   * then step at the precision of the field's default (coef_ext 0.01 → 0.01, coef_int 0.6 → 0.1).
+   */
+  private arrowStep(c: Record<string, any>, integer: boolean): number {
+    if (integer) return 1;
+    if (typeof c.step === "number" && c.step > 0) return c.step;
+    const def = String(this.schema.default ?? "");
+    const decimals = /^-?\d+(\.\d+)?$/.test(def) ? (def.split(".")[1]?.length ?? 0) : 1;
+    return 10 ** -Math.min(decimals, 3);
+  }
+
   private numberInput(c: Record<string, any>) {
     const integer = this.schema.type === "integer";
     return html`<input
@@ -138,7 +150,7 @@ export class VtField extends LitElement {
       type="number"
       inputmode="decimal"
       .value=${this.value === undefined || this.value === null ? "" : String(this.value)}
-      step=${integer ? 1 : c.step && c.step !== "any" ? c.step : "any"}
+      step=${this.arrowStep(c, integer)}
       min=${c.min ?? ""}
       max=${c.max ?? ""}
       ?disabled=${this.disabled}

@@ -219,12 +219,12 @@ Avec plusieurs interrupteurs, chacun garde tout son temps de chauffe ; VT d\xE9c
           .value=${this.value}
           .disabled=${this.disabled}
           @value-changed=${r=>{r.stopPropagation(),this.emit(r.detail.value)}}
-        ></ha-selector>`}}numberInput(e){let r=this.schema.type==="integer";return o`<input
+        ></ha-selector>`}}arrowStep(e,r){if(r)return 1;if(typeof e.step=="number"&&e.step>0)return e.step;let n=String(this.schema.default??""),i=/^-?\d+(\.\d+)?$/.test(n)?n.split(".")[1]?.length??0:1;return 10**-Math.min(i,3)}numberInput(e){let r=this.schema.type==="integer";return o`<input
       class="in"
       type="number"
       inputmode="decimal"
       .value=${this.value===void 0||this.value===null?"":String(this.value)}
-      step=${r?1:e.step&&e.step!=="any"?e.step:"any"}
+      step=${this.arrowStep(e,r)}
       min=${e.min??""}
       max=${e.max??""}
       ?disabled=${this.disabled}
