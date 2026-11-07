@@ -23,6 +23,7 @@ export interface GroupView {
 
 export interface CardView {
   id: string;
+  icon: string;
   featureKey?: string;
   featureOn: boolean;
   method?: { options: string[]; current: string };
@@ -87,6 +88,7 @@ export function buildCards(layout: Layout, data: Infos, pickedMethod?: string): 
     groups.forEach((g) => [...g.own, ...g.inherited].forEach((f) => steps.add(f.desc.step)));
     cards.push({
       id: card.id,
+      icon: card.icon ?? "mdi:dots-horizontal",
       featureKey,
       featureOn: featureKey ? data[featureKey] === true : !methodOff,
       method,

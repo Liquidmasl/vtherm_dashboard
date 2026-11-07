@@ -35,6 +35,7 @@ E, C, A = ESSENTIAL, COMMON, ADVANCED
 CARDS: list[dict[str, Any]] = [
     {
         "id": "room",
+        "icon": "mdi:sofa-outline",
         "groups": [
             _group(
                 "room",
@@ -49,6 +50,7 @@ CARDS: list[dict[str, Any]] = [
     },
     {
         "id": "devices",
+        "icon": "mdi:radiator",
         "groups": [
             _group(
                 "devices",
@@ -75,6 +77,7 @@ CARDS: list[dict[str, Any]] = [
     },
     {
         "id": "correction",
+        "icon": "mdi:tune-vertical",
         "groups": [
             _group(
                 "correction",
@@ -91,6 +94,7 @@ CARDS: list[dict[str, Any]] = [
     },
     {
         "id": "heating",
+        "icon": "mdi:sine-wave",
         "groups": [
             _group("algorithm", _f(("proportional_function", E), ("cycle_min", E))),
             _group(
@@ -126,12 +130,14 @@ CARDS: list[dict[str, Any]] = [
     },
     {
         "id": "presets",
+        "icon": "mdi:format-list-bulleted",
         # Always shown: the card also holds the preset temperatures, which are entities, not fields.
         "always": True,
         "groups": [_group("presets", _f(("use_presets_central_config", E), ("use_central_mode", C)))],
     },
     {
         "id": "window",
+        "icon": "mdi:window-open-variant",
         # One question replaces VT's feature flag and its two exclusive methods. "off" turns the
         # feature flag off; the other options turn it on and hide the other method's fields.
         "method": {
@@ -160,6 +166,7 @@ CARDS: list[dict[str, Any]] = [
     },
     {
         "id": "motion",
+        "icon": "mdi:account-check-outline",
         "control": {"type": "feature", "key": "use_motion_feature"},
         "groups": [
             _group("motion_detect", _f(("motion_sensor_entity_id", E))),
@@ -172,11 +179,13 @@ CARDS: list[dict[str, Any]] = [
     },
     {
         "id": "presence",
+        "icon": "mdi:home-export-outline",
         "control": {"type": "feature", "key": "use_presence_feature"},
         "groups": [_group("presence", _f(("presence_sensor_entity_id", E)), {"type": "central", "key": "use_presence_central_config"})],
     },
     {
         "id": "power",
+        "icon": "mdi:flash",
         "groups": [
             _group("device_power", _f(("device_power", E), ("power_unit", C))),
             _group(
@@ -188,6 +197,7 @@ CARDS: list[dict[str, Any]] = [
     },
     {
         "id": "boiler",
+        "icon": "mdi:water-boiler",
         "control": {"type": "feature", "key": "use_central_boiler_feature"},
         "groups": [
             _group(
@@ -203,6 +213,7 @@ CARDS: list[dict[str, Any]] = [
     },
     {
         "id": "safety",
+        "icon": "mdi:shield-half-full",
         "groups": [
             _group(
                 "safety",
@@ -234,11 +245,13 @@ CARDS: list[dict[str, Any]] = [
     },
     {
         "id": "auto_start_stop",
+        "icon": "mdi:power-sleep",
         "control": {"type": "feature", "key": "use_auto_start_stop_feature"},
         "groups": [_group("auto_start_stop", _f(("auto_start_stop_level", E)))],
     },
     {
         "id": "lock",
+        "icon": "mdi:lock-outline",
         "groups": [
             _group(
                 "lock",

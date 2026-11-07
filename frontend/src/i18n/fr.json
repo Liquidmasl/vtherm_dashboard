@@ -25,8 +25,8 @@
    "subtitle": "Ce qui se passe quand une fenêtre s'ouvre."
   },
   "motion": {
-   "title": "Mouvement",
-   "subtitle": "Changer de preset quand quelqu'un est dans la pièce."
+   "title": "Présence dans la pièce",
+   "subtitle": "Choisissez le preset Activité et la pièce bascule entre deux presets selon que quelqu'un est là ou non. Dans les autres presets, le capteur est ignoré."
   },
   "presence": {
    "title": "Absence du domicile",
@@ -349,24 +349,25 @@
    "info": "Hors-gel et Éco changent la consigne sans changer le preset : le preset affiché peut différer de la consigne."
   },
   "motion_sensor_entity_id": {
-   "label": "Capteur de mouvement",
-   "info": "À l'échelle de la pièce. Le thermostat ne le suit qu'en preset « Activité »."
+   "label": "Capteur de présence de la pièce",
+   "hint": "Un capteur de mouvement ou de présence (mmWave) dans cette pièce.",
+   "info": "VT appelle cette fonction « mouvement », mais elle demande seulement si quelqu'un est dans la pièce : on = occupée, off = vide. Un capteur de présence convient le mieux ; un capteur de mouvement fonctionne aussi.\n\nElle n'agit qu'en preset **Activité**, qui apparaît une fois cette carte configurée. En Activité, le thermostat prend la température du preset « occupée » tant que quelqu'un est là, et celle du preset « vide » quand la pièce est vide depuis un moment. En Éco, Confort, Boost ou en température manuelle, le capteur est ignoré."
   },
   "motion_preset": {
-   "label": "Preset avec mouvement",
+   "label": "Preset pièce occupée",
    "diagram": "motion"
   },
   "no_motion_preset": {
-   "label": "Preset sans mouvement",
+   "label": "Preset pièce vide",
    "diagram": "motion"
   },
   "motion_delay": {
-   "label": "Le mouvement doit durer (s)",
+   "label": "Occupée après (s)",
    "hint": "Un simple passage ne compte pas.",
    "diagram": "motion"
   },
   "motion_off_delay": {
-   "label": "Pièce vide après (s)",
+   "label": "Vide après (s)",
    "diagram": "motion"
   },
   "presence_sensor_entity_id": {
@@ -513,8 +514,8 @@
    "caption": "Une chute brutale marque « ouverte » jusqu'à ce que la pente remonte."
   },
   "motion": {
-   "title": "Chronologie mouvement",
-   "caption": "Un passage ne fait rien ; rester active le preset mouvement."
+   "title": "Chronologie de présence",
+   "caption": "Un passage ne fait rien ; rester active le preset « occupée » ; partir rétablit le preset « vide » après le délai."
   },
   "safety": {
    "title": "Capteur perdu",

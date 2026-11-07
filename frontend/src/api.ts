@@ -39,6 +39,8 @@ export interface LayoutGroup {
 
 export interface LayoutCard {
   id: string;
+  /** mdi icon for the card header and the index. */
+  icon?: string;
   control?: GroupControl;
   /** A choice between alternative sets of fields (window: sensor or temperature drop). */
   method?: { feature?: string; options: Record<string, string[]> };

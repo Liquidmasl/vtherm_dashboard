@@ -207,7 +207,7 @@ export class VThermEditor extends LitElement {
         else if (card.groups.every((g) => g.centralKey && g.usesCentral))
           status = html`<span class="state">${ui("state_central")}</span>`;
         return html`<button class=${card.featureOn ? "" : "off"} @click=${() => this.scrollToCard(card.id)}>
-          <ha-icon icon=${text.icon}></ha-icon><span class="label">${text.title}</span>${status}
+          <ha-icon icon=${card.icon}></ha-icon><span class="label">${text.title}</span>${status}
         </button>`;
       })}
     </nav>`;
@@ -227,7 +227,7 @@ export class VThermEditor extends LitElement {
         id="card-${card.id}"
       >
         <header>
-          <ha-icon icon=${text.icon}></ha-icon>
+          <ha-icon icon=${card.icon}></ha-icon>
           <div class="htext">
             <h2>${text.title}</h2>
             <p>${text.subtitle}</p>

@@ -25,8 +25,8 @@
    "subtitle": "What happens when a window opens."
   },
   "motion": {
-   "title": "Motion",
-   "subtitle": "Switch preset when someone is in the room."
+   "title": "Room presence",
+   "subtitle": "Select the Activity preset and the room switches between two presets depending on whether someone is there. In other presets the sensor is ignored."
   },
   "presence": {
    "title": "Away from home",
@@ -349,24 +349,25 @@
    "info": "Frost protection and Eco change the target without changing the preset, so the preset shown can differ from the target."
   },
   "motion_sensor_entity_id": {
-   "label": "Motion sensor",
-   "info": "Room level. The thermostat follows it only in the 'Activity' preset."
+   "label": "Room presence sensor",
+   "hint": "A motion or occupancy (mmWave) sensor in this room.",
+   "info": "VT calls this feature \"motion\", but it only asks whether someone is in the room: on = someone there, off = empty. An occupancy sensor fits best; a motion sensor works too.\n\nIt only acts in the **Activity** preset, which appears once this card is set up. In Activity, the thermostat uses the occupied preset's temperature while someone is there and the empty preset's after the room has been empty for a while. In Eco, Comfort, Boost or a manual temperature the sensor is ignored."
   },
   "motion_preset": {
-   "label": "Preset with motion",
+   "label": "Preset when occupied",
    "diagram": "motion"
   },
   "no_motion_preset": {
-   "label": "Preset without motion",
+   "label": "Preset when empty",
    "diagram": "motion"
   },
   "motion_delay": {
-   "label": "Motion must last (s)",
+   "label": "Occupied after (s)",
    "hint": "Walking through does not count.",
    "diagram": "motion"
   },
   "motion_off_delay": {
-   "label": "Room empty after (s)",
+   "label": "Empty after (s)",
    "diagram": "motion"
   },
   "presence_sensor_entity_id": {
@@ -513,8 +514,8 @@
    "caption": "Temperature line with a sudden fall: slope beyond the threshold marks 'open', ends when the slope recovers or the max duration passes."
   },
   "motion": {
-   "title": "Motion timeline",
-   "caption": "Motion pulses; a short pass does nothing, staying switches to the motion preset, leaving returns after the empty delay."
+   "title": "Room presence timeline",
+   "caption": "A short pass does nothing; staying switches to the occupied preset; leaving returns to the empty preset after the delay."
   },
   "safety": {
    "title": "Sensor loss",

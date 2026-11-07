@@ -92,15 +92,15 @@ const DIAGRAMS: Record<string, () => SVGTemplateResult> = {
     ${label(131, 22, "open: drop faster", "middle", B)}${label(131, 32, "than the threshold", "middle", B)}
     ${label(8, 22, "room temperature", "start", A)}${label(W - 8, H - 3, "time", "end")}
   `,
-  // Motion pulses; a quick pass does nothing, staying raises the target, leaving lowers it after a while.
+  // Room presence (VT: "motion"): a quick pass does nothing, staying raises the target, leaving lowers it after a while.
   motion: () => svg`
-    ${label(8, 14, "motion")}
+    ${label(8, 14, "someone in the room")}
     <rect x="24" y="20" width="10" height="10" fill=${M} rx="2"></rect>
     <rect x="70" y="20" width="90" height="10" fill=${M} rx="2"></rect>
     <path d="M8 76 H 100 V 50 H 200 V 76 H 232" fill="none" stroke=${A} stroke-width="2"></path>
-    <line x1="70" x2="100" y1="40" y2="40" stroke=${B} stroke-width="2"></line>${label(85, 46, "lasts", "middle", B)}
+    <line x1="70" x2="100" y1="40" y2="40" stroke=${B} stroke-width="2"></line>${label(85, 46, "occupied", "middle", B)}
     <line x1="160" x2="200" y1="40" y2="40" stroke=${B} stroke-width="2"></line>${label(180, 46, "empty", "middle", B)}
-    ${label(104, 62, "motion preset", "start", A)}${label(8, 90, "no-motion preset", "start", A)}
+    ${label(104, 62, "occupied preset", "start", A)}${label(8, 90, "empty preset", "start", A)}
   `,
   // Sensor reports stop; after the delay the heater runs at a fixed share until data returns.
   safety: () => svg`
