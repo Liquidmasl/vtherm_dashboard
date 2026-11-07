@@ -261,3 +261,62 @@ export function tpiHistory(
   }
   return out;
 }
+
+// --- Recorded comfort: room temperature against the target ---
+
+export interface TempPoint {
+  t: number;
+  room: number;
+  /** Null while the thermostat is off or has no target. */
+  target: number | null;
+}
+
+/** Room temperature and target at evenly spaced times (step-wise, like tpiHistory). */
+export function temperatureHistory(room: Sample[], targets: TargetSample[], from: number, until: number, points = 300): TempPoint[] {
+  const roomAt = stepper(room.filter((x) => x.v !== null));
+  const targetAt = stepper(targets);
+  const out: TempPoint[] = [];
+  for (let k = 0; k < points; k++) {
+    const t = from + ((until - from) * k) / (points - 1);
+    const r = roomAt(t)?.v;
+    if (r == null) continue;
+    const tg = targetAt(t);
+    const on = tg && tg.mode !== "off" && tg.mode !== "unavailable" && tg.target !== null;
+    out.push({ t, room: r, target: on ? tg.target : null });
+  }
+  return out;
+}
+
+export interface ComfortStats {
+  /** Share of the time with a target that the room was within ±band of it. */
+  inBand: number;
+  maxAbove: number;
+  maxBelow: number;
+  /** Periods above target + band. */
+  overshoots: { start: number; end: number }[];
+}
+
+export function comfortStats(points: TempPoint[], band = 0.5): ComfortStats | null {
+  const active = points.filter((p) => p.target !== null);
+  if (!active.length) return null;
+  const diffs = active.map((p) => p.room - p.target!);
+  const overshoots: ComfortStats["overshoots"] = [];
+  let start: number | null = null;
+  let prev = 0;
+  for (const p of points) {
+    const over = p.target !== null && p.room - p.target > band;
+    if (over && start === null) start = p.t;
+    if (!over && start !== null) {
+      overshoots.push({ start, end: prev });
+      start = null;
+    }
+    prev = p.t;
+  }
+  if (start !== null) overshoots.push({ start, end: prev });
+  return {
+    inBand: diffs.filter((d) => Math.abs(d) <= band).length / diffs.length,
+    maxAbove: Math.max(0, ...diffs),
+    maxBelow: Math.max(0, ...diffs.map((d) => -d)),
+    overshoots,
+  };
+}

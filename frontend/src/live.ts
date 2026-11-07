@@ -7,6 +7,8 @@ import {
   longest,
   sensorGaps,
   slopeHistory,
+  comfortStats,
+  temperatureHistory,
   tpiDecision,
   tpiHistory,
   windowDetections,
@@ -135,9 +137,13 @@ interface ChartSpec {
   maxGapMs?: number;
   /** Tooltip text for the point nearest to the pointer, from the first line. */
   hoverText: (t: number) => string;
+  /** Time of a crosshair shared with other charts of the panel. */
+  cursor?: number;
 }
 
-function timeChart(hass: any, spec: ChartSpec, onHover: (h?: { x: number; y: number; text: string }) => void): TemplateResult {
+type Hover = { x: number; y: number; text: string; t: number; chart: number };
+
+function timeChart(hass: any, spec: ChartSpec, onHover: (h?: Omit<Hover, "chart">) => void): TemplateResult {
   const W = 280;
   const H = 120;
   const pad = { l: 30, r: 4, t: 6, b: 16 };
@@ -168,7 +174,7 @@ function timeChart(hass: any, spec: ChartSpec, onHover: (h?: { x: number; y: num
     const t = from + ((((e.clientX - box.left) / box.width) * W - pad.l) / (W - pad.l - pad.r)) * (until - from);
     const p = anchor.reduce((best, q) => (Math.abs(q.t - t) < Math.abs(best.t - t) ? q : best));
     const scale = box.width / W;
-    onHover({ x: x(p.t) * scale, y: y(p.v) * scale - 6, text: spec.hoverText(p.t) });
+    onHover({ x: x(p.t) * scale, y: y(p.v) * scale - 6, text: spec.hoverText(p.t), t: p.t });
   };
   return html`<svg viewBox="0 0 ${W} ${H}" role="img" @pointermove=${onMove} @pointerleave=${() => onHover(undefined)}>
       ${(spec.bands ?? []).map(
@@ -189,6 +195,9 @@ function timeChart(hass: any, spec: ChartSpec, onHover: (h?: { x: number; y: num
                 stroke-linejoin="round" stroke-linecap="round"></path>`,
         ),
       )}
+      ${spec.cursor !== undefined && spec.cursor >= from && spec.cursor <= until
+        ? svg`<line x1=${x(spec.cursor)} x2=${x(spec.cursor)} y1=${pad.t} y2=${H - pad.b} stroke="var(--secondary-text-color)" stroke-width="1"></line>`
+        : nothing}
       <text x=${pad.l - 4} y=${y(hi) + 3} text-anchor="end">${spec.fmt(hi)}</text>
       ${lo < 0 && hi > 0 && Math.min(y(lo) - y(0), y(0) - y(hi)) > 10 ? svg`<text x=${pad.l - 4} y=${y(0) + 3} text-anchor="end">0</text>` : nothing}
       <text x=${pad.l - 4} y=${y(lo) + 3} text-anchor="end">${spec.fmt(lo)}</text>
@@ -202,7 +211,7 @@ function timeChart(hass: any, spec: ChartSpec, onHover: (h?: { x: number; y: num
 abstract class Replay extends LitElement {
   @property({ attribute: false }) hass: any;
   @state() range: Tab = "24h";
-  @state() hover?: { x: number; y: number; text: string };
+  @state() hover?: Hover;
   protected tabs: Tab[] = ["24h", "7d"];
 
   protected tabSwitch() {
@@ -223,12 +232,21 @@ abstract class Replay extends LitElement {
     return this.range === "now" ? 0 : RANGES[this.range];
   }
 
-  protected chart(spec: ChartSpec) {
-    return html`<div class="chart">${timeChart(this.hass, spec, (h) => (this.hover = h))}${this.tip()}</div>`;
+  /** A chart of this panel; charts with the same `index` share hover, all share the crosshair. */
+  protected chart(spec: ChartSpec, index = 0) {
+    const h = this.hover;
+    return html`<div class="chart">
+      ${timeChart(this.hass, { ...spec, cursor: h?.t }, (next) => (this.hover = next ? { ...next, chart: index } : undefined))}
+      ${h && h.chart === index ? this.tipAt(h) : nothing}
+    </div>`;
+  }
+
+  protected tipAt(h: { x: number; y: number; text: string }) {
+    return html`<div class="tip" style="left:${h.x}px;top:${h.y}px">${h.text}</div>`;
   }
 
   protected tip() {
-    return this.hover ? html`<div class="tip" style="left:${this.hover.x}px;top:${this.hover.y}px">${this.hover.text}</div>` : nothing;
+    return this.hover ? this.tipAt(this.hover) : nothing;
   }
 }
 
@@ -433,8 +451,51 @@ export class LiveTpi extends Replay {
     const line = (f: (p: TpiPoint) => number | null) =>
       pts.flatMap((p) => (f(p) === null ? [] : [{ t: p.t, v: f(p)! * 100 }]));
     const step = (until - from) / 299;
+    const temps = temperatureHistory(rec.room, rec.targets, from, until);
+    const comfort = comfortStats(temps);
+    const tAt = new Map(temps.map((p) => [p.t, p]));
+    const unit = this.hass.config?.unit_system?.temperature ?? "°C";
+    const deg = (v: number) => `${v.toFixed(1)}°`;
     return html`
-      <p><span class="big">${pct(mean(pts.map((p) => p.share)))}</span> ${live("tpi_mean", { range: live(`range_${this.range}`) })}</p>
+      ${comfort
+        ? html`<p>
+            <span class="big">${pct(comfort.inBand)}</span> ${live("comfort_in_band", { range: live(`range_${this.range}`) })}
+            <br /><span class="muted">${live("comfort_extremes", { above: deg(comfort.maxAbove), below: deg(comfort.maxBelow) })}</span>
+          </p>`
+        : nothing}
+      ${temps.length > 1
+        ? html`${this.chart(
+              {
+                from,
+                until,
+                withDay,
+                lines: [
+                  { points: temps.map((p) => ({ t: p.t, v: p.room })), color: "var(--primary-color)" },
+                  {
+                    points: temps.flatMap((p) => (p.target === null ? [] : [{ t: p.t, v: p.target }])),
+                    color: "var(--secondary-text-color)",
+                    dash: "4 3",
+                  },
+                ],
+                bands: comfort?.overshoots,
+                fmt: (v) => v.toFixed(1),
+                unit,
+                maxGapMs: step * 1.5,
+                hoverText: (t) => {
+                  const p = tAt.get(t)!;
+                  return `${time(this.hass, t, withDay)} · ${deg(p.room)}${p.target !== null ? ` / ${live("target")} ${deg(p.target)}` : ""}`;
+                },
+              },
+              1,
+            )}
+            <div class="legend">
+              <span><i class="sw room"></i>${live("legend_room_temp")}</span>
+              <span><i class="sw dash"></i>${live("legend_target")}</span>
+              ${comfort?.overshoots.length ? html`<span><i class="sw box over"></i>${live("legend_overshoot")}</span>` : nothing}
+              <span class="tag">${live("recorded")}</span>
+            </div>`
+        : nothing}
+      <p class="split"><span class="big">${pct(mean(pts.map((p) => p.share)))}</span> ${live("tpi_mean", { range: live(`range_${this.range}`) })}</p>
       ${this.chart({
         from,
         until,
@@ -489,6 +550,9 @@ export class LiveTpi extends Replay {
       .sw.room, .sw.box.room { background: var(--primary-color); }
       .sw.out, .sw.box.out { background: var(--warning-color); }
       .sw.box.req { background: color-mix(in srgb, var(--primary-text-color) 25%, transparent); }
+      .sw.box.over { background: color-mix(in srgb, var(--warning-color) 35%, transparent); }
+      .tag { margin-left: auto; font-size: 11px; padding: 0 6px; border-radius: 8px; border: 1px solid var(--divider-color); }
+      .split { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--divider-color); }
       a { color: var(--primary-color); }
     `,
   ];
@@ -661,6 +725,8 @@ export class LiveSafety extends Replay {
         x: box.left - hostBox.left + box.width / 2,
         y: box.top - hostBox.top - 4,
         text: `${time(this.hass, g.start, withDay)} → ${g.open ? live("now") : time(this.hass, g.end, withDay)} · ${duration(g.end - g.start)}`,
+        t: g.start,
+        chart: -1, // the strips have no time chart, so no crosshair
       };
     };
     return html`<div class="sensor">
