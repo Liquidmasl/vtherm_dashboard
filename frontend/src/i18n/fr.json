@@ -678,7 +678,7 @@
   "tpi_vs_vt": "VT a enregistré {vt} en moyenne sur la même période ; avec ces réglages : {ours}. L'écart vient de réglages modifiés ou du mode sécurité.",
   "legend_slope": "pente (estimation)",
   "legend_vt_slope": "enregistrée par VT",
-  "comfort_in_band": "du temps à ±0,5° de la consigne {range}.",
+  "comfort_in_band": "du temps à ±0,5° de la consigne {range} (hors trajet vers une nouvelle consigne).",
   "comfort_extremes": "Plus au-dessus : +{above} · plus en dessous : −{below}",
   "legend_room_temp": "pièce",
   "legend_target": "consigne",

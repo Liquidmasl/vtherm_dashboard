@@ -288,31 +288,44 @@ export function temperatureHistory(room: Sample[], targets: TargetSample[], from
 }
 
 export interface ComfortStats {
-  /** Share of the time with a target that the room was within ±band of it. */
+  /** Share of the settled time that the room was within ±band of the target. */
   inBand: number;
   maxAbove: number;
   maxBelow: number;
-  /** Periods above target + band. */
+  /** Settled periods above target + band. */
   overshoots: { start: number; end: number }[];
 }
 
+/**
+ * How well the room held its target. After the target changes the room needs time to get there
+ * (a night setback starts above it, a heat-up below it), so each change starts a settling phase
+ * that lasts until the room first comes within the band; settling time does not count.
+ */
 export function comfortStats(points: TempPoint[], band = 0.5): ComfortStats | null {
-  const active = points.filter((p) => p.target !== null);
-  if (!active.length) return null;
-  const diffs = active.map((p) => p.room - p.target!);
-  const overshoots: ComfortStats["overshoots"] = [];
-  let start: number | null = null;
-  let prev = 0;
+  const settled: { t: number; diff: number }[] = [];
+  let lastTarget: number | null = null;
+  let settling = false;
   for (const p of points) {
-    const over = p.target !== null && p.room - p.target > band;
-    if (over && start === null) start = p.t;
-    if (!over && start !== null) {
-      overshoots.push({ start, end: prev });
-      start = null;
+    if (p.target === null) {
+      lastTarget = null;
+      continue;
     }
-    prev = p.t;
+    const diff = p.room - p.target;
+    if (p.target !== lastTarget) settling = lastTarget !== null || Math.abs(diff) > band;
+    lastTarget = p.target;
+    if (settling && Math.abs(diff) <= band) settling = false;
+    if (!settling) settled.push({ t: p.t, diff });
   }
-  if (start !== null) overshoots.push({ start, end: prev });
+  if (!settled.length) return null;
+
+  const step = points.length > 1 ? points[1].t - points[0].t : 0;
+  const overshoots: ComfortStats["overshoots"] = [];
+  for (const p of settled.filter((x) => x.diff > band)) {
+    const last = overshoots[overshoots.length - 1];
+    if (last && p.t - last.end <= step * 1.5) last.end = p.t;
+    else overshoots.push({ start: p.t, end: p.t });
+  }
+  const diffs = settled.map((x) => x.diff);
   return {
     inBand: diffs.filter((d) => Math.abs(d) <= band).length / diffs.length,
     maxAbove: Math.max(0, ...diffs),

@@ -678,7 +678,7 @@
   "tpi_vs_vt": "VT recorded {vt} on average over the same time; with these settings: {ours}. They differ when the settings changed, or in safety mode.",
   "legend_slope": "slope (estimate)",
   "legend_vt_slope": "VT recorded",
-  "comfort_in_band": "of the time within ±0.5° of the target {range}.",
+  "comfort_in_band": "of the time within ±0.5° of the target {range} (not counting the way to a new target).",
   "comfort_extremes": "Most above target: +{above} · most below: −{below}",
   "legend_room_temp": "room",
   "legend_target": "target",
