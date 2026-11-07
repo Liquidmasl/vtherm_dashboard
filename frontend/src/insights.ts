@@ -196,3 +196,68 @@ export function sensorGaps(samples: Sample[], from: number, until: number): Gap[
 }
 
 export const longest = (gaps: Gap[]) => gaps.reduce<Gap | null>((m, g) => (!m || g.end - g.start > m.end - m.start ? g : m), null);
+
+// --- Heating share over time: tpiDecision replayed on recorded temperatures and targets ---
+
+/** The thermostat's recorded mode and target. */
+export interface TargetSample {
+  t: number;
+  mode: string;
+  target: number | null;
+}
+
+export interface TpiPoint {
+  t: number;
+  roomPart: number;
+  outsidePart: number;
+  /** The algorithm's share (what VT records as power_percent), before the shortest on/off rules. */
+  share: number;
+  /** VT's recorded share at that time, 0–1. */
+  vt: number | null;
+}
+
+/** Step-wise value at time t: the last sample at or before t (samples sorted by time). */
+function stepper<T extends { t: number }>(samples: T[]) {
+  let i = -1;
+  return (t: number): T | undefined => {
+    while (i + 1 < samples.length && samples[i + 1].t <= t) i++;
+    return i >= 0 ? samples[i] : undefined;
+  };
+}
+
+/**
+ * The heating share VT would have computed at `points` evenly spaced times, with the given settings.
+ * Off or without a target: no point. Without a room temperature: no point.
+ */
+export function tpiHistory(
+  room: Sample[],
+  outside: Sample[],
+  targets: TargetSample[],
+  slope: Sample[],
+  vt: Sample[],
+  settings: Omit<TpiInput, "current" | "target" | "outside" | "slope" | "cooling">,
+  from: number,
+  until: number,
+  points = 300,
+): TpiPoint[] {
+  const valid = (s: Sample[]) => s.filter((x) => x.v !== null);
+  const [roomAt, outAt, targetAt, slopeAt, vtAt] = [stepper(valid(room)), stepper(valid(outside)), stepper(targets), stepper(valid(slope)), stepper(vt)];
+  const out: TpiPoint[] = [];
+  for (let k = 0; k < points; k++) {
+    const t = from + ((until - from) * k) / (points - 1);
+    const r = roomAt(t)?.v;
+    const tg = targetAt(t);
+    const vtShare = vtAt(t)?.v;
+    if (r == null || !tg || tg.target === null || tg.mode === "off" || tg.mode === "unavailable") continue;
+    const d = tpiDecision({
+      ...settings,
+      current: r,
+      target: tg.target,
+      outside: outAt(t)?.v ?? null,
+      slope: slopeAt(t)?.v ?? null,
+      cooling: tg.mode === "cool",
+    });
+    out.push({ t, roomPart: d.roomPart, outsidePart: d.outsidePart, share: d.share, vt: vtShare == null ? null : vtShare / 100 });
+  }
+  return out;
+}

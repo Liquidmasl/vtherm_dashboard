@@ -80,10 +80,19 @@ def _payload(hass: HomeAssistant, infos: Infos) -> dict[str, Any]:
     }
 
 
-def _climate_entity_id(hass: HomeAssistant, entry_id: str) -> str | None:
-    """The VTherm's climate entity, if it has been created."""
-    registry = er.async_get(hass)
-    return next((e.entity_id for e in er.async_entries_for_config_entry(registry, entry_id) if e.domain == "climate"), None)
+# VT entities the live panels read, by role: the climate entity and VT's own sensors (translation key).
+_LIVE_SENSORS = ("power_percent", "temperature_slope")
+
+
+def _vt_entities(hass: HomeAssistant, entry_id: str) -> dict[str, str]:
+    """The VTherm's climate entity and the sensors the live panels compare against, once created."""
+    out: dict[str, str] = {}
+    for e in er.async_entries_for_config_entry(er.async_get(hass), entry_id):
+        if e.domain == "climate":
+            out["climate"] = e.entity_id
+        elif e.domain == "sensor" and e.translation_key in _LIVE_SENSORS:
+            out[e.translation_key] = e.entity_id
+    return out
 
 
 @websocket_api.require_admin
@@ -98,7 +107,7 @@ def ws_list(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg
                 "entry_id": entry.entry_id,
                 "title": entry.title,
                 "thermostat_type": entry.data.get(c.CONF_THERMOSTAT_TYPE),
-                "climate_entity_id": _climate_entity_id(hass, entry.entry_id),
+                "climate_entity_id": _vt_entities(hass, entry.entry_id).get("climate"),
                 "underlying_count": len(entry.data.get(c.CONF_UNDERLYING_LIST) or []),
                 "prop_function": entry.data.get(c.CONF_PROP_FUNCTION),
                 "loaded": entry.state is ConfigEntryState.LOADED,
@@ -121,7 +130,7 @@ def ws_get(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg:
     infos = init_feature_flags(_init_central_flags(dict(entry.data), central_exists))
     connection.send_result(
         msg["id"],
-        {"title": entry.title, "climate_entity_id": _climate_entity_id(hass, entry.entry_id), "data": infos, **_payload(hass, infos)},
+        {"title": entry.title, "entities": _vt_entities(hass, entry.entry_id), "data": infos, **_payload(hass, infos)},
     )
 
 

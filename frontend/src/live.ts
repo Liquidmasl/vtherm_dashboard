@@ -1,14 +1,28 @@
 // Live side panels: what VT would do with the settings being edited, on this room's real data.
 // Each panel takes the effective settings (own or central) and entity ids; numbers are estimates
 // from insights.ts and are labelled as such.
-import { LitElement, html, svg, css, nothing, type PropertyValues } from "lit";
+import { LitElement, html, svg, css, nothing, type PropertyValues, type TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { longest, sensorGaps, slopeHistory, tpiDecision, windowDetections, type Gap, type Sample, type SlopePoint } from "./insights";
+import {
+  longest,
+  sensorGaps,
+  slopeHistory,
+  tpiDecision,
+  tpiHistory,
+  windowDetections,
+  type Gap,
+  type Sample,
+  type SlopePoint,
+  type TargetSample,
+  type TpiPoint,
+} from "./insights";
 import { live } from "./i18n";
 
 const HOUR = 3_600_000;
 const RANGES = { "24h": 24 * HOUR, "7d": 7 * 24 * HOUR } as const;
 type Range = keyof typeof RANGES;
+/** A replay range, or the heating panel's "right now" view. */
+type Tab = "now" | Range;
 
 const num = (v: unknown): number | null => {
   const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
@@ -17,10 +31,12 @@ const num = (v: unknown): number | null => {
 
 // --- History (HA's history/history_during_period), cached for a few minutes per entity and range ---
 
-const cache = new Map<string, { at: number; data: Promise<Sample[]> }>();
+type HistoryRow = { s: string; a?: Record<string, any>; lu?: number; lc?: number };
+const cache = new Map<string, { at: number; data: Promise<HistoryRow[]> }>();
 
-export function fetchHistory(hass: any, entityId: string, range: Range): Promise<Sample[]> {
-  const key = `${entityId}|${range}`;
+/** Recorded states of one entity over the range; attributes only when asked for (heavier). */
+function history(hass: any, entityId: string, range: Range, attributes = false): Promise<HistoryRow[]> {
+  const key = `${entityId}|${range}|${attributes}`;
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < 5 * 60_000) return hit.data;
   const end = new Date();
@@ -30,17 +46,25 @@ export function fetchHistory(hass: any, entityId: string, range: Range): Promise
       start_time: new Date(end.getTime() - RANGES[range]).toISOString(),
       end_time: end.toISOString(),
       entity_ids: [entityId],
-      minimal_response: true,
-      no_attributes: true,
+      minimal_response: !attributes,
+      no_attributes: !attributes,
       significant_changes_only: false,
     })
-    .then((res: Record<string, { s: string; lu?: number; lc?: number }[]>) =>
-      (res[entityId] ?? []).map((x) => ({ t: (x.lu ?? x.lc ?? 0) * 1000, v: num(x.s) })),
-    );
+    .then((res: Record<string, HistoryRow[]>) => res[entityId] ?? []);
   data.catch(() => cache.delete(key));
   cache.set(key, { at: Date.now(), data });
   return data;
 }
+
+const rowTime = (x: HistoryRow) => (x.lu ?? x.lc ?? 0) * 1000;
+
+/** Numeric history of a sensor; no entity gives an empty history. */
+export const fetchHistory = async (hass: any, entityId: string | undefined, range: Range): Promise<Sample[]> =>
+  entityId ? (await history(hass, entityId, range)).map((x) => ({ t: rowTime(x), v: num(x.s) })) : [];
+
+/** The thermostat's recorded mode and target temperature. */
+const fetchTargets = async (hass: any, climateId: string, range: Range): Promise<TargetSample[]> =>
+  (await history(hass, climateId, range, true)).map((x) => ({ t: rowTime(x), mode: x.s, target: num(x.a?.temperature) }));
 
 const time = (hass: any, t: number, withDay: boolean) =>
   new Date(t).toLocaleString(hass?.locale?.language ?? hass?.language, {
@@ -76,10 +100,139 @@ const shared = css`
   svg text { font-size: 10px; fill: var(--secondary-text-color); }
   .tip { position: absolute; pointer-events: none; background: var(--card-background-color); border: 1px solid var(--divider-color);
     border-radius: 6px; padding: 3px 8px; font-size: 12px; white-space: nowrap; transform: translate(-50%, -100%); box-shadow: 0 2px 6px rgba(0,0,0,.25); }
-  .chart { position: relative; margin-top: 6px; }
+  .chart { position: relative; margin-top: 16px; }
+  .legend { display: flex; gap: 4px 12px; flex-wrap: wrap; font-size: 12px; color: var(--secondary-text-color); margin-top: 4px; }
+  .sw { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: 3px; }
+  .sw.box { height: 10px; width: 10px; vertical-align: -1px; }
+  .sw.dash { background: none !important; border-top: 2px dashed var(--secondary-text-color); height: 0; }
+  .unit { position: absolute; left: 0; top: -12px; font-size: 10px; color: var(--secondary-text-color); }
 `;
 
-// --- Heating control: the heating share TPI would compute right now ---
+// --- A small time chart: lines (optionally filled), horizontal reference lines, shaded bands, hover ---
+
+interface ChartLine {
+  points: { t: number; v: number }[];
+  color: string;
+  dash?: string;
+  /** Fill between the line and zero. */
+  area?: boolean;
+}
+
+interface ChartSpec {
+  from: number;
+  until: number;
+  withDay: boolean;
+  lines: ChartLine[];
+  refs?: { v: number; color: string; dash: string; label: string; below?: boolean }[];
+  bands?: { start: number; end: number }[];
+  /** Always include these values in the y range. */
+  include?: number[];
+  /** Hard limits for the y range (outliers are clipped). */
+  clamp?: [number, number];
+  fmt: (v: number) => string;
+  unit: string;
+  /** Points further apart than this break the line (thermostat off, no data). */
+  maxGapMs?: number;
+  /** Tooltip text for the point nearest to the pointer, from the first line. */
+  hoverText: (t: number) => string;
+}
+
+function timeChart(hass: any, spec: ChartSpec, onHover: (h?: { x: number; y: number; text: string }) => void): TemplateResult {
+  const W = 280;
+  const H = 120;
+  const pad = { l: 30, r: 4, t: 6, b: 16 };
+  const { from, until } = spec;
+  const values = spec.lines.flatMap((l) => l.points.map((p) => p.v));
+  let lo = Math.min(...values, ...(spec.include ?? []), ...(spec.refs ?? []).map((r) => r.v));
+  let hi = Math.max(...values, ...(spec.include ?? []), ...(spec.refs ?? []).map((r) => r.v));
+  if (spec.clamp) [lo, hi] = [Math.max(lo, spec.clamp[0]), Math.min(hi, spec.clamp[1])];
+  const m = (hi - lo || 1) * 0.06;
+  const [top, bottom] = [hi + m, lo - m];
+  const x = (t: number) => pad.l + ((t - from) / (until - from)) * (W - pad.l - pad.r);
+  const y = (v: number) => pad.t + ((top - Math.max(bottom, Math.min(top, v))) / (top - bottom)) * (H - pad.t - pad.b);
+  const gap = spec.maxGapMs ?? Infinity;
+  const segments = (pts: ChartLine["points"]) => {
+    const out: ChartLine["points"][] = [];
+    pts.forEach((p, i) => (i && p.t - pts[i - 1].t <= gap ? out[out.length - 1].push(p) : out.push([p])));
+    return out;
+  };
+  const d = (pts: ChartLine["points"]) => pts.map((p, i) => `${i ? "L" : "M"}${x(p.t).toFixed(1)} ${y(p.v).toFixed(1)}`).join("");
+  const tickEvery = (spec.withDay ? 24 : 6) * HOUR;
+  const ticks: number[] = [];
+  for (let t = Math.ceil(from / tickEvery) * tickEvery; t < until; t += tickEvery) ticks.push(t);
+  const anchor = spec.lines[0]?.points ?? [];
+
+  const onMove = (e: PointerEvent) => {
+    if (!anchor.length) return;
+    const box = (e.currentTarget as SVGElement).getBoundingClientRect();
+    const t = from + ((((e.clientX - box.left) / box.width) * W - pad.l) / (W - pad.l - pad.r)) * (until - from);
+    const p = anchor.reduce((best, q) => (Math.abs(q.t - t) < Math.abs(best.t - t) ? q : best));
+    const scale = box.width / W;
+    onHover({ x: x(p.t) * scale, y: y(p.v) * scale - 6, text: spec.hoverText(p.t) });
+  };
+  return html`<svg viewBox="0 0 ${W} ${H}" role="img" @pointermove=${onMove} @pointerleave=${() => onHover(undefined)}>
+      ${(spec.bands ?? []).map(
+        (b) => svg`<rect x=${x(b.start)} y=${pad.t} width=${Math.max(3, x(b.end) - x(b.start))} height=${H - pad.t - pad.b}
+          fill="var(--warning-color)" opacity="0.25"></rect>`,
+      )}
+      <line x1=${pad.l} x2=${W - pad.r} y1=${y(0)} y2=${y(0)} stroke="var(--divider-color)"></line>
+      ${(spec.refs ?? []).map(
+        (r) => svg`<line x1=${pad.l} x2=${W - pad.r} y1=${y(r.v)} y2=${y(r.v)} stroke=${r.color} stroke-dasharray=${r.dash}></line>
+          <text x=${W - pad.r} y=${r.below ? y(r.v) + 11 : y(r.v) - 3} text-anchor="end">${r.label}</text>`,
+      )}
+      ${spec.lines.map((l) =>
+        segments(l.points).map((seg) =>
+          l.area
+            ? svg`<path d=${`${d(seg)}L${x(seg[seg.length - 1].t).toFixed(1)} ${y(0)}L${x(seg[0].t).toFixed(1)} ${y(0)}Z`}
+                fill=${l.color} opacity="0.15"></path>`
+            : svg`<path d=${d(seg)} fill="none" stroke=${l.color} stroke-width="2" stroke-dasharray=${l.dash ?? ""}
+                stroke-linejoin="round" stroke-linecap="round"></path>`,
+        ),
+      )}
+      <text x=${pad.l - 4} y=${y(hi) + 3} text-anchor="end">${spec.fmt(hi)}</text>
+      ${lo < 0 && hi > 0 && Math.min(y(lo) - y(0), y(0) - y(hi)) > 10 ? svg`<text x=${pad.l - 4} y=${y(0) + 3} text-anchor="end">0</text>` : nothing}
+      <text x=${pad.l - 4} y=${y(lo) + 3} text-anchor="end">${spec.fmt(lo)}</text>
+      ${ticks.map((t) => svg`<text x=${x(t)} y=${H - 3} text-anchor="middle">${time(hass, t, spec.withDay).replace(/:00$/, "")}</text>`)}
+    </svg>
+    <div class="unit">${spec.unit}</div>`;
+}
+
+// --- Base for the panels: tabs (ranges), hover tooltip ---
+
+abstract class Replay extends LitElement {
+  @property({ attribute: false }) hass: any;
+  @state() range: Tab = "24h";
+  @state() hover?: { x: number; y: number; text: string };
+  protected tabs: Tab[] = ["24h", "7d"];
+
+  protected tabSwitch() {
+    return html`<span class="seg" role="radiogroup">
+      ${this.tabs.map(
+        (r) => html`<button role="radio" aria-checked=${r === this.range} class=${r === this.range ? "on" : ""} @click=${() => (this.range = r)}>
+          ${r === "now" ? live("tab_now") : r}
+        </button>`,
+      )}
+    </span>`;
+  }
+
+  protected head(title: string) {
+    return html`<div class="head"><h4>${title}</h4>${this.tabSwitch()}<span class="est">${live("estimate")}</span></div>`;
+  }
+
+  protected get rangeMs() {
+    return this.range === "now" ? 0 : RANGES[this.range];
+  }
+
+  protected chart(spec: ChartSpec) {
+    return html`<div class="chart">${timeChart(this.hass, spec, (h) => (this.hover = h))}${this.tip()}</div>`;
+  }
+
+  protected tip() {
+    return this.hover ? html`<div class="tip" style="left:${this.hover.x}px;top:${this.hover.y}px">${this.hover.text}</div>` : nothing;
+  }
+}
+
+// --- Heating control: the heating share TPI computes, right now (with the arithmetic) and over time ---
 
 export interface TpiSettings {
   coefInt: number;
@@ -92,27 +245,63 @@ export interface TpiSettings {
 }
 
 @customElement("vt-live-tpi")
-export class LiveTpi extends LitElement {
-  @property({ attribute: false }) hass: any;
+export class LiveTpi extends Replay {
   @property({ attribute: false }) settings!: TpiSettings;
-  @property() climateId?: string;
+  @property({ attribute: false }) entities: { climate?: string; power_percent?: string; temperature_slope?: string } = {};
   @property() sensorId?: string;
   @property() outsideId?: string;
   /** A target to try, when the thermostat has none yet or the user wants another one. */
   @state() private tryTarget?: number;
+  @state() private recorded?: { room: Sample[]; outside: Sample[]; targets: TargetSample[]; slope: Sample[]; vt: Sample[] };
+  @state() private error?: string;
+  protected tabs: Tab[] = ["now", "24h", "7d"];
+  private span = { from: 0, until: 0 };
+
+  protected willUpdate(changed: PropertyValues<this>) {
+    if (this.range !== "now" && (changed.has("range") || changed.has("sensorId") || changed.has("outsideId") || changed.has("entities"))) this.load();
+  }
+
+  private async load() {
+    this.recorded = undefined;
+    this.error = undefined;
+    const range = this.range as Range;
+    const until = Date.now();
+    this.span = { from: until - RANGES[range], until };
+    const climate = this.entities.climate;
+    try {
+      const [room, outside, targets, slope, vt] = await Promise.all([
+        fetchHistory(this.hass, this.sensorId, range),
+        fetchHistory(this.hass, this.outsideId, range),
+        climate ? fetchTargets(this.hass, climate, range) : Promise.resolve([]),
+        fetchHistory(this.hass, this.entities.temperature_slope, range),
+        fetchHistory(this.hass, this.entities.power_percent, range),
+      ]);
+      this.recorded = { room, outside, targets, slope, vt };
+    } catch (e: any) {
+      this.error = e?.message ?? String(e);
+    }
+  }
+
+  render() {
+    const head = this.head(live("tpi_title"));
+    if (this.range === "now") return html`${head}${this.renderNow()}`;
+    if (this.error) return html`${head}<p class="warn">${this.error}</p>`;
+    if (!this.recorded) return html`${head}<p class="muted">${live("loading")}</p>`;
+    if (!this.entities.climate) return html`${head}<p class="muted">${live("tpi_no_history")}</p>`;
+    return html`${head}${this.renderHistory()}`;
+  }
+
+  // Now: today's values and how the share is made of them.
 
   private readings() {
     const st = (id?: string) => (id ? this.hass.states[id] : undefined);
-    const climate = st(this.climateId);
+    const climate = st(this.entities.climate);
     const a = climate?.attributes ?? {};
     const specific = a.specific_states ?? {};
-    const current = num(a.current_temperature) ?? num(st(this.sensorId)?.state);
-    const outside = num(specific.ext_current_temperature) ?? num(st(this.outsideId)?.state);
     const liveTarget = num(a.temperature);
     return {
-      current,
-      outside,
-      liveTarget,
+      current: num(a.current_temperature) ?? num(st(this.sensorId)?.state),
+      outside: num(specific.ext_current_temperature) ?? num(st(this.outsideId)?.state),
       target: this.tryTarget ?? liveTarget ?? 20,
       slope: num(specific.temperature_slope),
       cooling: climate?.state === "cool",
@@ -124,9 +313,9 @@ export class LiveTpi extends LitElement {
     };
   }
 
-  render() {
+  private renderNow() {
     const r = this.readings();
-    if (r.current === null) return html`${this.head()}<p class="muted">${live("no_temperature")}</p>`;
+    if (r.current === null) return html`<p class="muted">${live("no_temperature")}</p>`;
     const s = this.settings;
     const d = tpiDecision({
       current: r.current,
@@ -144,41 +333,48 @@ export class LiveTpi extends LitElement {
       minOffSec: s.minOffSec,
     });
     const final = d.onSec / (s.cycleMin * 60);
-    const deg = (v: number | null) => (v === null ? "–" : `${v.toFixed(1)} ${r.unit}`);
+    const deg = (v: number) => `${v.toFixed(1)}°`;
+    // Heating: target − temperature; cooling the other way round (VT's delta_temp).
+    const gap = (temp: number) => (r.cooling ? temp - r.target : r.target - temp);
+    const diff = (temp: number) => (r.cooling ? `${deg(temp)} − ${deg(r.target)}` : `${deg(r.target)} − ${deg(temp)}`);
+    const sum = d.roomPart + d.outsidePart;
     return html`
-      ${this.head()}
-      <div class="row"><span class="muted">${live("room")}</span><span>${deg(r.current)}</span></div>
-      <div class="row">
+      <div class="row target-row">
         <span class="muted">${live("target")}</span>
         <span class="target">
           <button aria-label="−" @click=${() => (this.tryTarget = Math.round((r.target - 0.5) * 10) / 10)}>−</button>
-          <span class=${this.tryTarget !== undefined ? "tried" : ""}>${deg(r.target)}</span>
+          <span class=${this.tryTarget !== undefined ? "tried" : ""}>${r.target.toFixed(1)} ${r.unit}</span>
           <button aria-label="+" @click=${() => (this.tryTarget = Math.round((r.target + 0.5) * 10) / 10)}>+</button>
         </span>
       </div>
-      <div class="row"><span class="muted">${live("outside")}</span><span>${deg(r.outside)}</span></div>
+      <div class="calc">
+        <span class="lbl"><i class="sw box room"></i>${live("room")}</span>
+        <span class="expr">(${diff(r.current)}) × ${s.coefInt}</span>
+        <span class="res">${pct(d.roomPart)}</span>
+        <span class="sub">${live("calc_room", { gap: deg(gap(r.current)), coef: "coef_int" })}</span>
+        ${r.outside !== null
+          ? html`<span class="lbl"><i class="sw box out"></i>${live("outside")}</span>
+              <span class="expr">(${diff(r.outside)}) × ${s.coefExt}</span>
+              <span class="res">${pct(d.outsidePart)}</span>
+              <span class="sub">${live("calc_outside", { gap: deg(gap(r.outside)), coef: "coef_ext" })}</span>`
+          : html`<span class="lbl">${live("outside")}</span><span class="expr muted">${live("no_outside")}</span><span class="res">0 %</span>`}
+        <span class="lbl total">${live("sum")}</span><span class="expr total"></span><span class="res total">${pct(sum)}</span>
+      </div>
+      ${this.bar(d.roomPart, d.outsidePart)}
       <div class="result">
         <span class="big">${pct(final)}</span>
         <span class="muted">${live("of_each_cycle", { on: duration(d.onSec * 1000), cycle: `${s.cycleMin} min` })}</span>
       </div>
-      ${this.bar(d.roomPart, d.outsidePart)}
-      <div class="legend">
-        <span><i class="sw room"></i>${live("room_part", { v: pct(d.roomPart) })}</span>
-        <span><i class="sw out"></i>${live("outside_part", { v: pct(d.outsidePart) })}</span>
-      </div>
-      ${!d.stoppedByThreshold && d.roomPart > 0 && d.outsidePart > 0 && d.roomPart + d.outsidePart > 1
-        ? html`<p class="muted">${live("sum_capped", { a: pct(d.roomPart), b: pct(d.outsidePart), sum: pct(d.roomPart + d.outsidePart) })}</p>`
-        : nothing}
+      ${!d.stoppedByThreshold && sum > 1 ? html`<p class="muted">${live("capped_100")}</p>` : nothing}
+      ${!d.stoppedByThreshold && sum < 0 ? html`<p class="muted">${live("below_0")}</p>` : nothing}
       ${d.stoppedByThreshold ? html`<p class="warn">${live("stopped_threshold")}</p>` : nothing}
       ${d.forcedByTiming === "min_on" ? html`<p class="warn">${live("forced_min_on", { v: pct(d.share) })}</p>` : nothing}
       ${d.forcedByTiming === "min_off" ? html`<p class="warn">${live("forced_min_off", { v: pct(d.share) })}</p>` : nothing}
-      ${r.maxOn !== null && d.share === r.maxOn && d.roomPart + d.outsidePart > r.maxOn
-        ? html`<p class="muted">${live("capped", { v: pct(r.maxOn) })}</p>`
-        : nothing}
+      ${r.maxOn !== null && d.share === r.maxOn && sum > r.maxOn ? html`<p class="muted">${live("capped", { v: pct(r.maxOn) })}</p>` : nothing}
       ${this.tryTarget !== undefined
         ? html`<p class="muted">${live("tried_target")} <a href="#" @click=${this.resetTarget}>${live("reset")}</a></p>`
         : nothing}
-      ${r.vtShare !== null && this.climateId
+      ${r.vtShare !== null && this.entities.climate
         ? html`<div class="vt">
             ${live("vt_now", { v: pct(r.vtShare) })}${r.off ? ` · ${live("vt_off")}` : r.preset === "safety" ? ` · ${live("vt_safety")}` : ""}
           </div>`
@@ -191,63 +387,111 @@ export class LiveTpi extends LitElement {
     this.tryTarget = undefined;
   }
 
-  private head() {
-    return html`<div class="head"><h4>${live("tpi_title")}</h4><span class="est">${live("estimate")}</span></div>`;
-  }
-
-  /** Room part and outside part stacked on a 0–100 % track; parts below zero shown as "nothing". */
+  /** Room part and outside part stacked on a 0–100 % track (negative parts left out). */
   private bar(room: number, outside: number) {
     const W = 280;
     const clamp = (v: number) => Math.max(0, Math.min(1, v));
     const roomW = clamp(room) * W;
     const outW = Math.max(0, clamp(room + outside) - clamp(room)) * W;
     return html`<svg viewBox="0 0 ${W} 22" role="img" aria-label=${live("tpi_title")}>
-      <rect x="0" y="4" width=${W} height="14" rx="4" fill="var(--secondary-background-color)"></rect>
+      <rect x="0" y="4" width=${W} height="14" rx="4" fill="var(--card-background-color)"></rect>
       ${roomW > 0 ? svg`<rect x="0" y="4" width=${Math.max(0, roomW - (outW > 0 ? 2 : 0))} height="14" rx="4" fill="var(--primary-color)"></rect>` : nothing}
       ${outW > 0 ? svg`<rect x=${roomW} y="4" width=${outW} height="14" rx="4" fill="var(--warning-color)"></rect>` : nothing}
     </svg>`;
   }
 
+  // 24 h / 7 d: the share replayed on the recorded temperatures and targets, against VT's recorded one.
+
+  private renderHistory() {
+    const rec = this.recorded!;
+    const s = this.settings;
+    const { from, until } = this.span;
+    const pts: TpiPoint[] = tpiHistory(
+      rec.room,
+      rec.outside,
+      rec.targets,
+      rec.slope,
+      rec.vt,
+      {
+        coefInt: s.coefInt,
+        coefExt: s.coefExt,
+        thresholdLow: s.thresholdLow,
+        thresholdHigh: s.thresholdHigh,
+        maxOnPercent: num(this.hass.states[this.entities.climate!]?.attributes?.configuration?.max_on_percent),
+        cycleMin: s.cycleMin,
+        minOnSec: s.minOnSec,
+        minOffSec: s.minOffSec,
+      },
+      from,
+      until,
+    );
+    if (pts.length < 2) return html`<p class="muted">${live("too_little_history")}</p>`;
+    const withDay = this.range !== "24h";
+    const mean = (vals: number[]) => vals.reduce((a, b) => a + b, 0) / (vals.length || 1);
+    const withVt = pts.filter((p) => p.vt !== null);
+    const at = (t: number) => pts.find((p) => p.t === t)!;
+    const line = (f: (p: TpiPoint) => number | null) =>
+      pts.flatMap((p) => (f(p) === null ? [] : [{ t: p.t, v: f(p)! * 100 }]));
+    const step = (until - from) / 299;
+    return html`
+      <p><span class="big">${pct(mean(pts.map((p) => p.share)))}</span> ${live("tpi_mean", { range: live(`range_${this.range}`) })}</p>
+      ${this.chart({
+        from,
+        until,
+        withDay,
+        lines: [
+          { points: line((p) => p.share), color: "var(--primary-text-color)", area: true },
+          { points: line((p) => p.roomPart), color: "var(--primary-color)" },
+          { points: line((p) => p.outsidePart), color: "var(--warning-color)" },
+          { points: line((p) => p.vt), color: "var(--secondary-text-color)", dash: "3 3" },
+        ],
+        include: [0, 100],
+        clamp: [-100, 150],
+        fmt: (v) => `${Math.round(v)}`,
+        unit: "%",
+        maxGapMs: step * 1.5,
+        hoverText: (t) => {
+          const p = at(t);
+          return `${time(this.hass, t, withDay)} · ${pct(p.share)} = ${pct(p.roomPart)} + ${pct(p.outsidePart)}${p.vt !== null ? ` · VT ${pct(p.vt)}` : ""}`;
+        },
+      })}
+      <div class="legend">
+        <span><i class="sw box req"></i>${live("legend_request")}</span>
+        <span><i class="sw room"></i>${live("legend_room")}</span>
+        <span><i class="sw out"></i>${live("legend_outside")}</span>
+        ${withVt.length ? html`<span><i class="sw dash"></i>${live("legend_vt")}</span>` : nothing}
+      </div>
+      ${withVt.length
+        ? html`<div class="vt">
+            ${live("tpi_vs_vt", {
+              ours: pct(mean(withVt.map((p) => p.share))),
+              vt: pct(mean(withVt.map((p) => p.vt!))),
+            })}
+          </div>`
+        : nothing}
+    `;
+  }
+
   static styles = [
     shared,
     css`
-      .row { padding: 1px 0; }
       .target { display: inline-flex; align-items: center; gap: 6px; }
       .target button { all: unset; cursor: pointer; width: 18px; height: 18px; line-height: 18px; text-align: center; border-radius: 4px; border: 1px solid var(--divider-color); color: var(--secondary-text-color); font-size: 12px; }
       .target button:focus-visible { outline: 2px solid var(--primary-color); }
       .tried { color: var(--primary-color); }
-      .result { display: flex; align-items: baseline; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-      .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--secondary-text-color); margin-top: 2px; }
-      .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
-      .sw.room { background: var(--primary-color); }
-      .sw.out { background: var(--warning-color); }
+      .calc { display: grid; grid-template-columns: auto 1fr auto; gap: 0 8px; margin: 8px 0 4px; font-variant-numeric: tabular-nums; align-items: baseline; }
+      .calc .expr { color: var(--secondary-text-color); font-size: 12px; white-space: nowrap; }
+      .calc .res { text-align: right; }
+      .calc .sub { grid-column: 2 / -1; font-size: 11px; color: var(--secondary-text-color); margin-bottom: 4px; }
+      .calc .total { border-top: 1px solid var(--divider-color); padding-top: 3px; margin-top: 2px; }
+      .calc .lbl { white-space: nowrap; }
+      .result { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+      .sw.room, .sw.box.room { background: var(--primary-color); }
+      .sw.out, .sw.box.out { background: var(--warning-color); }
+      .sw.box.req { background: color-mix(in srgb, var(--primary-text-color) 25%, transparent); }
       a { color: var(--primary-color); }
     `,
   ];
-}
-
-// --- Base for the history replays: range switch, loading, hover ---
-
-abstract class Replay extends LitElement {
-  @property({ attribute: false }) hass: any;
-  @state() range: Range = "24h";
-  @state() protected hover?: { x: number; y: number; text: string };
-
-  protected rangeSwitch() {
-    return html`<span class="seg" role="radiogroup">
-      ${(Object.keys(RANGES) as Range[]).map(
-        (r) => html`<button role="radio" aria-checked=${r === this.range} class=${r === this.range ? "on" : ""} @click=${() => (this.range = r)}>${r}</button>`,
-      )}
-    </span>`;
-  }
-
-  protected head(title: string) {
-    return html`<div class="head"><h4>${title}</h4>${this.rangeSwitch()}<span class="est">${live("estimate")}</span></div>`;
-  }
-
-  protected tip() {
-    return this.hover ? html`<div class="tip" style="left:${this.hover.x}px;top:${this.hover.y}px">${this.hover.text}</div>` : nothing;
-  }
 }
 
 // --- Open window by temperature drop: replay the slope over the recorded room temperature ---
@@ -255,27 +499,32 @@ abstract class Replay extends LitElement {
 @customElement("vt-live-window")
 export class LiveWindow extends Replay {
   @property() sensorId?: string;
-  @property() climateId?: string;
+  /** VT's own slope sensor, drawn for comparison. */
+  @property() slopeId?: string;
   @property({ type: Number }) openThreshold: number | null = null;
   @property({ type: Number }) closeThreshold: number | null = null;
   @property({ type: Number }) maxDurationMin: number | null = null;
   @property({ type: Number }) cycleMin = 5;
   @state() private slopes?: SlopePoint[];
+  @state() private vtSlopes: Sample[] = [];
   @state() private error?: string;
   private span = { from: 0, until: 0 };
 
   protected willUpdate(changed: PropertyValues<this>) {
-    if (changed.has("sensorId") || changed.has("range") || changed.has("cycleMin")) this.load();
+    if (changed.has("sensorId") || changed.has("slopeId") || changed.has("range") || changed.has("cycleMin")) this.load();
   }
 
   private async load() {
     this.slopes = undefined;
     this.error = undefined;
     if (!this.sensorId) return;
+    const range = this.range as Range;
     const until = Date.now();
-    this.span = { from: until - RANGES[this.range], until };
+    this.span = { from: until - RANGES[range], until };
     try {
-      this.slopes = slopeHistory(await fetchHistory(this.hass, this.sensorId, this.range), this.cycleMin);
+      const [room, vt] = await Promise.all([fetchHistory(this.hass, this.sensorId, range), fetchHistory(this.hass, this.slopeId, range)]);
+      this.vtSlopes = vt;
+      this.slopes = slopeHistory(room, this.cycleMin);
     } catch (e: any) {
       this.error = e?.message ?? String(e);
     }
@@ -286,81 +535,55 @@ export class LiveWindow extends Replay {
     if (!this.sensorId) return html`${head}<p class="muted">${live("no_sensor")}</p>`;
     if (this.error) return html`${head}<p class="warn">${this.error}</p>`;
     if (!this.slopes) return html`${head}<p class="muted">${live("loading")}</p>`;
-    const slopes = this.slopes.filter((p) => p.t >= this.span.from);
+    const { from, until } = this.span;
+    const slopes = this.slopes.filter((p) => p.t >= from);
     if (slopes.length < 2) return html`${head}<p class="muted">${live("too_little_history")}</p>`;
 
-    const found = windowDetections(slopes, this.openThreshold, this.closeThreshold, this.maxDurationMin, this.span.until);
+    const found = windowDetections(slopes, this.openThreshold, this.closeThreshold, this.maxDurationMin, until);
     const steepest = slopes.reduce((m, p) => (p.slope < m.slope ? p : m));
     const withDay = this.range !== "24h";
-    const vtSlope = num(this.hass.states[this.climateId ?? ""]?.attributes?.specific_states?.temperature_slope);
+    const vt = this.vtSlopes.filter((p) => p.v !== null && p.t >= from).map((p) => ({ t: p.t, v: p.v! }));
+    const byT = new Map(slopes.map((p) => [p.t, p.slope]));
     return html`
       ${head}
       ${this.openThreshold === null
         ? html`<p>${live("window_no_threshold")}</p>`
-        : found.length
-          ? html`<p><span class="big">${found.length}×</span> ${live("window_detected", { range: live(`range_${this.range}`) })}</p>`
-          : html`<p><span class="big">0×</span> ${live("window_never", { range: live(`range_${this.range}`) })}</p>`}
-      <div class="chart">${this.chart(slopes, found, withDay)}${this.tip()}</div>
+        : html`<p><span class="big">${found.length}×</span> ${live(found.length ? "window_detected" : "window_never", { range: live(`range_${this.range}`) })}</p>`}
+      ${this.chart({
+        from,
+        until,
+        withDay,
+        lines: [
+          { points: slopes.map((p) => ({ t: p.t, v: p.slope })), color: "var(--primary-color)" },
+          ...(vt.length ? [{ points: vt, color: "var(--secondary-text-color)", dash: "3 3" }] : []),
+        ],
+        refs: [
+          ...(this.openThreshold !== null
+            ? [{ v: -this.openThreshold, color: "var(--warning-color)", dash: "4 3", label: live("open_line"), below: true }]
+            : []),
+          ...(this.closeThreshold !== null
+            ? [{ v: this.closeThreshold, color: "var(--secondary-text-color)", dash: "2 3", label: live("close_line") }]
+            : []),
+        ],
+        bands: found,
+        include: [-1, 1],
+        fmt: (v) => v.toFixed(0),
+        unit: "°/h",
+        hoverText: (t) => `${time(this.hass, t, withDay)} · ${byT.get(t)!.toFixed(1)} °/h`,
+      })}
+      <div class="legend">
+        <span><i class="sw room"></i>${live("legend_slope")}</span>
+        ${vt.length ? html`<span><i class="sw dash"></i>${live("legend_vt_slope")}</span>` : nothing}
+      </div>
       <p class="muted">
         ${live("steepest", { v: `${steepest.slope.toFixed(1)} °/h`, at: time(this.hass, steepest.t, withDay) })}
         ${found.some((f) => f.byMaxDuration) ? html`<br />${live("ended_by_max")}` : nothing}
       </p>
       <p class="muted">${live("window_caveat")}</p>
-      ${vtSlope !== null ? html`<div class="vt">${live("vt_slope", { v: `${vtSlope.toFixed(1)} °/h` })}</div>` : nothing}
     `;
   }
 
-  private chart(slopes: SlopePoint[], found: { start: number; end: number }[], withDay: boolean) {
-    const W = 280;
-    const H = 120;
-    const pad = { l: 26, r: 4, t: 6, b: 16 };
-    const { from, until } = this.span;
-    const values = slopes.map((p) => p.slope);
-    const lines = [this.openThreshold !== null ? -this.openThreshold : null, this.closeThreshold].filter((v): v is number => v !== null);
-    let lo = Math.min(...values, ...lines, -1);
-    let hi = Math.max(...values, ...lines, 1);
-    const m = (hi - lo) * 0.08;
-    lo -= m;
-    hi += m;
-    const x = (t: number) => pad.l + ((t - from) / (until - from)) * (W - pad.l - pad.r);
-    const y = (v: number) => pad.t + ((hi - v) / (hi - lo)) * (H - pad.t - pad.b);
-    const path = slopes.map((p, i) => `${i ? "L" : "M"}${x(p.t).toFixed(1)} ${y(p.slope).toFixed(1)}`).join("");
-    const hourTicks = withDay ? 24 : 6;
-    const ticks: number[] = [];
-    for (let t = Math.ceil(from / (hourTicks * HOUR)) * hourTicks * HOUR; t < until; t += hourTicks * HOUR) ticks.push(t);
-
-    const onMove = (e: PointerEvent) => {
-      const box = (e.currentTarget as SVGElement).getBoundingClientRect();
-      const t = from + (((e.clientX - box.left) / box.width) * W - pad.l) / (W - pad.l - pad.r) * (until - from);
-      const p = slopes.reduce((best, q) => (Math.abs(q.t - t) < Math.abs(best.t - t) ? q : best));
-      const scale = box.width / W;
-      this.hover = { x: x(p.t) * scale, y: y(p.slope) * scale - 6, text: `${time(this.hass, p.t, withDay)} · ${p.slope.toFixed(1)} °/h` };
-    };
-    return html`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label=${live("window_title")}
-      @pointermove=${onMove} @pointerleave=${() => (this.hover = undefined)}>
-      ${found.map(
-        (f) => svg`<rect x=${x(f.start)} y=${pad.t} width=${Math.max(2, x(f.end) - x(f.start))} height=${H - pad.t - pad.b}
-          fill="var(--warning-color)" opacity="0.22"></rect>`,
-      )}
-      <line x1=${pad.l} x2=${W - pad.r} y1=${y(0)} y2=${y(0)} stroke="var(--divider-color)"></line>
-      ${this.openThreshold !== null
-        ? svg`<line x1=${pad.l} x2=${W - pad.r} y1=${y(-this.openThreshold)} y2=${y(-this.openThreshold)} stroke="var(--warning-color)" stroke-dasharray="4 3"></line>
-          <text x=${W - pad.r} y=${y(-this.openThreshold) + 11} text-anchor="end">${live("open_line")}</text>`
-        : nothing}
-      ${this.closeThreshold !== null
-        ? svg`<line x1=${pad.l} x2=${W - pad.r} y1=${y(this.closeThreshold)} y2=${y(this.closeThreshold)} stroke="var(--secondary-text-color)" stroke-dasharray="2 3"></line>
-          <text x=${W - pad.r} y=${y(this.closeThreshold) - 3} text-anchor="end">${live("close_line")}</text>`
-        : nothing}
-      <path d=${path} fill="none" stroke="var(--primary-color)" stroke-width="2" stroke-linejoin="round"></path>
-      <text x=${pad.l - 4} y=${y(hi - m) + 3} text-anchor="end">${(hi - m).toFixed(0)}</text>
-      <text x=${pad.l - 4} y=${y(0) + 3} text-anchor="end">0</text>
-      <text x=${pad.l - 4} y=${y(lo + m) + 3} text-anchor="end">${(lo + m).toFixed(0)}</text>
-      ${ticks.map((t) => svg`<text x=${x(t)} y=${H - 3} text-anchor="middle">${time(this.hass, t, withDay).replace(/:00$/, "")}</text>`)}
-    </svg>
-    <div class="axis-note">°/h</div>`;
-  }
-
-  static styles = [shared, css`.axis-note { position: absolute; left: 0; top: -2px; font-size: 10px; color: var(--secondary-text-color); }`];
+  static styles = [shared, css`.sw.room { background: var(--primary-color); }`];
 }
 
 // --- Sensor loss: silences of the room (and outside) sensor against the safety delay ---
@@ -384,7 +607,7 @@ export class LiveSafety extends Replay {
     this.gaps = undefined;
     this.error = undefined;
     const until = Date.now();
-    const from = until - RANGES[this.range];
+    const from = until - this.rangeMs;
     this.span = { from, until };
     const sensors = [
       { id: this.sensorId, label: live("room_sensor") },
@@ -392,7 +615,7 @@ export class LiveSafety extends Replay {
     ].filter((s): s is { id: string; label: string } => !!s.id);
     try {
       this.gaps = await Promise.all(
-        sensors.map(async (s) => ({ ...s, gaps: sensorGaps(await fetchHistory(this.hass, s.id, this.range), from, until) })),
+        sensors.map(async (s) => ({ ...s, gaps: sensorGaps(await fetchHistory(this.hass, s.id, this.range as Range), from, until) })),
       );
     } catch (e: any) {
       this.error = e?.message ?? String(e);

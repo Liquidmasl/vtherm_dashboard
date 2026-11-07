@@ -1,6 +1,6 @@
 import { LitElement, html, css, nothing, type PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { describe, getEntry, getPresets, newDraft, save, type Infos, type Layout, type PresetEntities } from "./api";
+import { describe, getEntry, getPresets, newDraft, save, type Infos, type Layout, type PresetEntities, type VThermEntities } from "./api";
 import { isBoolean, isWide } from "./field";
 import "./field";
 import "./live";
@@ -29,7 +29,7 @@ export class VThermEditor extends LitElement {
   @state() private loadError?: string;
   @state() private wide = true;
   @state() private presets: PresetEntities = { own: {}, central: {} };
-  @state() private climateId?: string;
+  @state() private entities: VThermEntities = {};
 
   private describeSeq = 0;
   private resizer = new ResizeObserver(([entry]) => (this.wide = entry.contentRect.width >= WIDE_PX));
@@ -55,13 +55,13 @@ export class VThermEditor extends LitElement {
     this.dirty = false;
     this.windowMethod = undefined;
     this.layout = undefined;
-    this.climateId = undefined;
+    this.entities = {};
     try {
       getPresets(this.hass, this.entryId).then((p) => (this.presets = p));
       if (this.entryId) {
         const res = await getEntry(this.hass, this.entryId);
         this.heading = res.title;
-        this.climateId = res.climate_entity_id ?? undefined;
+        this.entities = res.entities;
         await this.applyLayout(res.data, res);
       } else if (this.newType) {
         const res = await newDraft(this.hass, this.newType);
@@ -292,7 +292,7 @@ export class VThermEditor extends LitElement {
         if (this.effective("proportional_function") !== "tpi" || !this.layout!.fields.tpi_coef_int) return nothing;
         return html`<vt-live-tpi
           .hass=${this.hass}
-          .climateId=${this.climateId}
+          .entities=${this.entities}
           .sensorId=${sensorId}
           .outsideId=${outsideId}
           .settings=${{
@@ -309,7 +309,7 @@ export class VThermEditor extends LitElement {
         if (card.method?.current !== "drop") return nothing;
         return html`<vt-live-window
           .hass=${this.hass}
-          .climateId=${this.climateId}
+          .slopeId=${this.entities.temperature_slope}
           .sensorId=${sensorId}
           .openThreshold=${nullable("window_auto_open_threshold")}
           .closeThreshold=${nullable("window_auto_close_threshold")}

@@ -58,6 +58,15 @@ export interface Layout {
   layout: { cards: LayoutCard[]; control_keys: string[]; derived_flags: Record<string, string> };
 }
 
+/** A VTherm's own entities the live panels read (missing until VT has created them). */
+export interface VThermEntities {
+  climate?: string;
+  /** VT's heating share in % (the algorithm's value, before the shortest on/off rules). */
+  power_percent?: string;
+  /** VT's temperature slope in °/h. */
+  temperature_slope?: string;
+}
+
 export interface EntrySummary {
   entry_id: string;
   title: string;
@@ -81,7 +90,7 @@ export const listEntries = (hass: any) =>
   hass.callWS({ type: `${P}/list` }) as Promise<{ entries: EntrySummary[]; thermostat_types: string[] }>;
 
 export const getEntry = (hass: any, entry_id: string) =>
-  hass.callWS({ type: `${P}/get`, entry_id }) as Promise<Layout & { title: string; climate_entity_id: string | null; data: Infos }>;
+  hass.callWS({ type: `${P}/get`, entry_id }) as Promise<Layout & { title: string; entities: VThermEntities; data: Infos }>;
 
 export const newDraft = (hass: any, thermostat_type: string) =>
   hass.callWS({ type: `${P}/new`, thermostat_type }) as Promise<Layout & { data: Infos }>;
