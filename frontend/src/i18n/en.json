@@ -26,7 +26,7 @@
   },
   "motion": {
    "title": "Room presence",
-   "subtitle": "Select the Activity preset and the room switches between two presets depending on whether someone is there. In other presets the sensor is ignored."
+   "subtitle": "In the Activity preset, the room uses one preset's temperature while someone is there and another's when it is empty. The preset itself stays Activity; other presets ignore the sensor."
   },
   "presence": {
    "title": "Away from home",
@@ -351,15 +351,17 @@
   "motion_sensor_entity_id": {
    "label": "Room presence sensor",
    "hint": "A motion or occupancy (mmWave) sensor in this room.",
-   "info": "VT calls this feature \"motion\", but it only asks whether someone is in the room: on = someone there, off = empty. An occupancy sensor fits best; a motion sensor works too.\n\nIt only acts in the **Activity** preset, which appears once this card is set up. In Activity, the thermostat uses the occupied preset's temperature while someone is there and the empty preset's after the room has been empty for a while. In Eco, Comfort, Boost or a manual temperature the sensor is ignored."
+   "info": "VT calls this feature \"motion\", but it only asks whether someone is in the room: on = someone there, off = empty. An occupancy sensor fits best; a motion sensor works too.\n\nIt only acts in the **Activity** preset, which appears once this card is set up. The preset stays Activity; only the target changes: the occupied preset's temperature while someone is there, the empty preset's once the room has been empty for a while. In Eco, Comfort, Boost or a manual temperature the sensor is ignored, so an explicitly chosen preset always wins."
   },
   "motion_preset": {
-   "label": "Preset when occupied",
-   "diagram": "motion"
+   "label": "Temperature when occupied",
+   "diagram": "motion",
+   "hint": "The temperature of this preset is used; the selected preset stays Activity."
   },
   "no_motion_preset": {
-   "label": "Preset when empty",
-   "diagram": "motion"
+   "label": "Temperature when empty",
+   "diagram": "motion",
+   "hint": "The temperature of this preset is used while the room is empty."
   },
   "motion_delay": {
    "label": "Occupied after (s)",
@@ -515,7 +517,7 @@
   },
   "motion": {
    "title": "Room presence timeline",
-   "caption": "A short pass does nothing; staying switches to the occupied preset; leaving returns to the empty preset after the delay."
+   "caption": "A short pass does nothing; staying uses the occupied temperature; leaving returns to the empty temperature after the delay. The preset stays Activity."
   },
   "safety": {
    "title": "Sensor loss",

@@ -100,7 +100,7 @@ const DIAGRAMS: Record<string, () => SVGTemplateResult> = {
     <path d="M8 76 H 100 V 50 H 200 V 76 H 232" fill="none" stroke=${A} stroke-width="2"></path>
     <line x1="70" x2="100" y1="40" y2="40" stroke=${B} stroke-width="2"></line>${label(85, 46, "occupied", "middle", B)}
     <line x1="160" x2="200" y1="40" y2="40" stroke=${B} stroke-width="2"></line>${label(180, 46, "empty", "middle", B)}
-    ${label(104, 62, "occupied preset", "start", A)}${label(8, 90, "empty preset", "start", A)}
+    ${label(104, 62, "occupied temperature", "start", A)}${label(8, 90, "empty temperature (preset stays Activity)", "start", A)}
   `,
   // Sensor reports stop; after the delay the heater runs at a fixed share until data returns.
   safety: () => svg`

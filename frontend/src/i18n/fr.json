@@ -26,7 +26,7 @@
   },
   "motion": {
    "title": "Présence dans la pièce",
-   "subtitle": "Choisissez le preset Activité et la pièce bascule entre deux presets selon que quelqu'un est là ou non. Dans les autres presets, le capteur est ignoré."
+   "subtitle": "En preset Activité, la pièce prend la température d'un preset quand quelqu'un est là et celle d'un autre quand elle est vide. Le preset reste Activité ; les autres presets ignorent le capteur."
   },
   "presence": {
    "title": "Absence du domicile",
@@ -351,15 +351,17 @@
   "motion_sensor_entity_id": {
    "label": "Capteur de présence de la pièce",
    "hint": "Un capteur de mouvement ou de présence (mmWave) dans cette pièce.",
-   "info": "VT appelle cette fonction « mouvement », mais elle demande seulement si quelqu'un est dans la pièce : on = occupée, off = vide. Un capteur de présence convient le mieux ; un capteur de mouvement fonctionne aussi.\n\nElle n'agit qu'en preset **Activité**, qui apparaît une fois cette carte configurée. En Activité, le thermostat prend la température du preset « occupée » tant que quelqu'un est là, et celle du preset « vide » quand la pièce est vide depuis un moment. En Éco, Confort, Boost ou en température manuelle, le capteur est ignoré."
+   "info": "VT appelle cette fonction « mouvement », mais elle demande seulement si quelqu'un est dans la pièce : on = occupée, off = vide. Un capteur de présence convient le mieux ; un capteur de mouvement fonctionne aussi.\n\nElle n'agit qu'en preset **Activité**, qui apparaît une fois cette carte configurée. Le preset reste Activité ; seule la consigne change : la température du preset « occupée » tant que quelqu'un est là, celle du preset « vide » quand la pièce est vide depuis un moment. En Éco, Confort, Boost ou en température manuelle, le capteur est ignoré : un preset choisi explicitement l'emporte toujours."
   },
   "motion_preset": {
-   "label": "Preset pièce occupée",
-   "diagram": "motion"
+   "label": "Température pièce occupée",
+   "diagram": "motion",
+   "hint": "La température de ce preset est utilisée ; le preset sélectionné reste Activité."
   },
   "no_motion_preset": {
-   "label": "Preset pièce vide",
-   "diagram": "motion"
+   "label": "Température pièce vide",
+   "diagram": "motion",
+   "hint": "La température de ce preset est utilisée tant que la pièce est vide."
   },
   "motion_delay": {
    "label": "Occupée après (s)",
@@ -515,7 +517,7 @@
   },
   "motion": {
    "title": "Chronologie de présence",
-   "caption": "Un passage ne fait rien ; rester active le preset « occupée » ; partir rétablit le preset « vide » après le délai."
+   "caption": "Un passage ne fait rien ; rester applique la température « occupée » ; partir rétablit la température « vide » après le délai. Le preset reste Activité."
   },
   "safety": {
    "title": "Capteur perdu",
